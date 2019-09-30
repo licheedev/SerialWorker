@@ -4,30 +4,35 @@ import com.licheedev.myutils.LogPlus;
 import com.licheedev.serialworker.core.DataReceiver;
 import com.licheedev.serialworker.core.SendData;
 import io.reactivex.Observable;
+import io.reactivex.schedulers.Schedulers;
 import java.io.IOException;
 import java.util.concurrent.Callable;
 
 /**
- * 用于全双工的rs232
+ * 用于全双工的rs232设备,发送命令和接收数据完全异步；
+ * 适用于会主动上报心跳、状态的串口设备。
  *
  * @param <S> 发送的数据类型
  * @param <DR> 数据接收器
  */
-public abstract class SerialWorker232<S extends SendData, DR extends DataReceiver>
+public abstract class Rs232SerialWorker<S extends SendData, DR extends DataReceiver>
     extends BaseSerialWorker<DR> {
 
-    private static final String TAG = "SerialWorker232";
+    private static final String TAG = "Rs232SerialWorker";
+
+    public Rs232SerialWorker() {
+    }
 
     /**
      * 在当前线程发送数据
      *
-     * @param sendCommand
+     * @param sendData
      */
-    private void sendOnCurrentThread(final S sendCommand) throws IOException {
+    private void sendOnCurrentThread(final S sendData) throws IOException {
 
-        byte[] bytes = sendCommand.toBytes();
+        byte[] bytes = sendData.toBytes();
         // 更新发送时间
-        sendCommand.updateSendTime();
+        sendData.updateSendTime();
         sendOnCurrentThread(bytes, 0, bytes.length);
     }
 
@@ -35,13 +40,13 @@ public abstract class SerialWorker232<S extends SendData, DR extends DataReceive
      * 发送数据，同步，会阻塞当前线程；
      * 可能会抛出异常
      *
-     * @param sendCommand
+     * @param sendData
      */
-    public void sendOrThrow(final S sendCommand) throws Exception {
+    public void send(final S sendData) throws Exception {
         Callable callable = new Callable() {
             @Override
             public Object call() throws Exception {
-                sendOnCurrentThread(sendCommand);
+                sendOnCurrentThread(sendData);
                 return null; // 不用管返回值
             }
         };
@@ -53,11 +58,11 @@ public abstract class SerialWorker232<S extends SendData, DR extends DataReceive
      * 发送数据，同步，会阻塞当前线程；
      * 已try-catch
      *
-     * @param sendCommand
+     * @param sendData
      */
-    public void send(final S sendCommand) {
+    public void sendNoThrow(final S sendData) {
         try {
-            sendOrThrow(sendCommand);
+            send(sendData);
         } catch (Exception e) {
             LogPlus.w(TAG, e);
         }
@@ -66,57 +71,82 @@ public abstract class SerialWorker232<S extends SendData, DR extends DataReceive
     /**
      * 异步发送数据，不会阻塞当前线程
      *
-     * @param sendCommand
+     * @param sendData
      */
-    public void asyncSend(final S sendCommand) {
+    public void asyncSend(final S sendData) {
         try {
             Runnable runnable = new Runnable() {
                 @Override
                 public void run() {
                     try {
-                        sendOnCurrentThread(sendCommand);
-                    } catch (IOException e) {
+                        sendOnCurrentThread(sendData);
+                    } catch (Exception e) {
                         //e.printStackTrace();
                     }
                 }
             };
             mSerialExecutor.execute(runnable);
         } catch (Exception e) {
-            //e.printStackTrace();
+            LogPlus.w(TAG, e);
         }
     }
 
     /**
-     * 发送数据，没切线程，默认发射true，需要处理异常
+     * 发送数据,需要处理异常;
+     * 没切线程，需自己进行线程调度
      *
-     * @param sendCommand
+     * @param sendData
      * @return
      */
-    public Observable<Boolean> rxSendOrThrow(final S sendCommand) {
+    public Observable<Boolean> rxSend(final S sendData) {
 
         return Observable.fromCallable(new Callable<Boolean>() {
             @Override
             public Boolean call() throws Exception {
-                sendOrThrow(sendCommand);
+                send(sendData);
                 return Boolean.TRUE;
             }
         });
     }
 
     /**
-     * 发送数据，没切线程，默认发射true，内部已try-catch
+     * 发送数据,需要处理异常；
+     * 已切IO线程（{@link Schedulers#io()}）
      *
-     * @param sendCommand
+     * @param sendData
      * @return
      */
-    public Observable<Boolean> rxSend(final S sendCommand) {
+    public Observable<Boolean> rxSendOnIo(final S sendData) {
+
+        return rxSend(sendData).subscribeOn(Schedulers.io());
+    }
+
+    /**
+     * 发送数据，内部已try-catch;
+     * 没切线程，需自己进行线程调度
+     *
+     * @param sendData
+     * @return
+     */
+    public Observable<Boolean> rxSendNoThrow(final S sendData) {
 
         return Observable.fromCallable(new Callable<Boolean>() {
             @Override
             public Boolean call() throws Exception {
-                send(sendCommand);
+                sendNoThrow(sendData);
                 return Boolean.TRUE;
             }
         });
+    }
+
+    /**
+     * 发送数据，内部已try-catch;
+     * 已切IO线程（{@link Schedulers#io()}）
+     *
+     * @param sendData
+     * @return
+     */
+    public Observable<Boolean> rxSendOnIoNoThrow(final S sendData) {
+        return rxSendNoThrow(sendData).subscribeOn(Schedulers.io());
     }
 }

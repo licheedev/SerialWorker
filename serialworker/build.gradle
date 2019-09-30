@@ -6,7 +6,7 @@ android {
 
 
     defaultConfig {
-        minSdkVersion 19
+        minSdkVersion 8
         targetSdkVersion 28
         versionCode 1
         versionName "1.0"
@@ -36,6 +36,6 @@ dependencies {
     // rx全家桶
     api 'io.reactivex.rxjava2:rxjava:2.2.6'
     api 'com.trello.rxlifecycle2:rxlifecycle-android:2.2.2'
-
-    apply from: '../jitpack.gradle'
 }
+
+apply from: '../jitpack.gradle'

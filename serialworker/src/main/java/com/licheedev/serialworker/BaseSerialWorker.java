@@ -309,7 +309,7 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
      * @param len
      * @throws IOException
      */
-    protected void trySyncSendOnCurrentThread(byte[] bytes, int offset, int len) {
+    protected void sendOnCurrentThreadNoThrow(byte[] bytes, int offset, int len) {
         try {
             sendOnCurrentThread(bytes, offset, len);
         } catch (Exception e) {
@@ -329,7 +329,7 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
             Runnable runnable = new Runnable() {
                 @Override
                 public void run() {
-                    trySyncSendOnCurrentThread(bytes, offset, length);
+                    sendOnCurrentThreadNoThrow(bytes, offset, length);
                 }
             };
             mSerialExecutor.submit(runnable).get();
@@ -350,7 +350,7 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
             Runnable runnable = new Runnable() {
                 @Override
                 public void run() {
-                    trySyncSendOnCurrentThread(bytes, offset, length);
+                    sendOnCurrentThreadNoThrow(bytes, offset, length);
                 }
             };
             mSerialExecutor.execute(runnable);
