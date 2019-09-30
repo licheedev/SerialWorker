@@ -211,4 +211,27 @@ public abstract class Rs485SerialWorker<S extends SendData, R extends RecvData>
     public Observable<R> rxSendNoThrowOnIo(S sendData) {
         return rxSendNoThrow(sendData).subscribeOn(Schedulers.io());
     }
+
+    /**
+     * 【慎用】异步发送数据，不会阻塞当前线程
+     *
+     * @param sendData
+     */
+    public void asyncSend(final S sendData) {
+        try {
+            Runnable runnable = new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        sendOnCurrentThread(sendData);
+                    } catch (Exception e) {
+                        //e.printStackTrace();
+                    }
+                }
+            };
+            mSerialExecutor.execute(runnable);
+        } catch (Exception e) {
+            LogPlus.w(TAG, e);
+        }
+    }
 }

@@ -84,7 +84,7 @@ public interface SerialWorker {
      * @param logSend 打印发送数据的日志
      * @param logRecv 打印接收数据的日志
      */
-    void setLogSend(boolean logSend, boolean logRecv);
+    void enableLog(boolean logSend, boolean logRecv);
 
     /**
      * 是否显示发送数据日志

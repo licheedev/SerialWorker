@@ -19,8 +19,8 @@ public abstract class BaseRecvData implements RecvData {
         return mRecvTime;
     }
 
-    @Override
-    public void updateRecvTime() {
-        mRecvTime = SystemClock.elapsedRealtime();
-    }
+    //@Override
+    //public void updateRecvTime() {
+    //    mRecvTime = SystemClock.elapsedRealtime();
+    //}
 }

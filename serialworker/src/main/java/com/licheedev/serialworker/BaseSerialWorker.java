@@ -265,7 +265,7 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
     //}
 
     @Override
-    public void setLogSend(boolean logSend, boolean logRecv) {
+    public void enableLog(boolean logSend, boolean logRecv) {
         mLogSend = logSend;
         mLogRecv = logRecv;
     }

@@ -239,4 +239,31 @@ public abstract class Rs232ReactiveSerialWorker<S extends SendData, R extends Re
     public Observable<R> rxSendNoThrowOnIo(final S sendData) {
         return rxSendNoThrow(sendData).subscribeOn(Schedulers.io());
     }
+
+    /**
+     * 【慎用】异步发送数据，不会阻塞当前线程
+     *
+     * @param sendData
+     */
+    public void asyncSend(final S sendData) {
+        try {
+            Runnable runnable = new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        byte[] bytes = sendData.toBytes();
+                        // 更新发送时间
+                        sendData.updateSendTime();
+                        // 发送
+                        sendOnCurrentThread(bytes, 0, bytes.length);
+                    } catch (Exception e) {
+                        //e.printStackTrace();
+                    }
+                }
+            };
+            mSerialExecutor.execute(runnable);
+        } catch (Exception e) {
+            LogPlus.w(TAG, e);
+        }
+    }
 }

@@ -1,4 +1,4 @@
-package com.licheedev.serialworker;
+package com.licheedev.serialworkerdemo;
 
 import org.junit.Test;
 
