@@ -1,12 +1,17 @@
 package com.licheedev.serialworker;
 
-import com.licheedev.myutils.LogPlus;
+import android.support.annotation.NonNull;
 import com.licheedev.serialworker.core.DataReceiver;
 import com.licheedev.serialworker.core.SendData;
 import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.exceptions.CompositeException;
+import io.reactivex.plugins.RxJavaPlugins;
 import io.reactivex.schedulers.Schedulers;
 import java.io.IOException;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 
 /**
  * 用于全双工的rs232设备,发送命令和接收数据完全异步；
@@ -42,7 +47,8 @@ public abstract class Rs232SerialWorker<S extends SendData, DR extends DataRecei
      *
      * @param sendData
      */
-    public void send(final S sendData) throws Exception {
+    public void send(final S sendData) throws ExecutionException, InterruptedException {
+
         Callable callable = new Callable() {
             @Override
             public Object call() throws Exception {
@@ -63,8 +69,8 @@ public abstract class Rs232SerialWorker<S extends SendData, DR extends DataRecei
     public void sendNoThrow(final S sendData) {
         try {
             send(sendData);
-        } catch (Exception e) {
-            LogPlus.w(TAG, e);
+        } catch (Throwable e) {
+            //LogPlus.w(TAG, e);
         }
     }
 
@@ -87,8 +93,43 @@ public abstract class Rs232SerialWorker<S extends SendData, DR extends DataRecei
             };
             mSerialExecutor.execute(runnable);
         } catch (Exception e) {
-            LogPlus.w(TAG, e);
+            //LogPlus.w(TAG, e);
         }
+    }
+
+    /**
+     * Rx发送数据源
+     *
+     * @param sendData
+     * @return
+     */
+    @NonNull
+    private ObservableOnSubscribe<Boolean> getRxSendSource(final S sendData) {
+        return new ObservableOnSubscribe<Boolean>() {
+            @Override
+            public void subscribe(ObservableEmitter<Boolean> emitter) throws Exception {
+
+                boolean terminated = false;
+                try {
+                    send(sendData);
+                    if (!emitter.isDisposed()) {
+                        terminated = true;
+                        emitter.onNext(Boolean.TRUE);
+                        emitter.onComplete();
+                    }
+                } catch (Throwable t) {
+                    if (terminated) {
+                        RxJavaPlugins.onError(t);
+                    } else if (!emitter.isDisposed()) {
+                        try {
+                            emitter.onError(t);
+                        } catch (Throwable inner) {
+                            RxJavaPlugins.onError(new CompositeException(t, inner));
+                        }
+                    }
+                }
+            }
+        };
     }
 
     /**
@@ -100,13 +141,7 @@ public abstract class Rs232SerialWorker<S extends SendData, DR extends DataRecei
      */
     public Observable<Boolean> rxSend(final S sendData) {
 
-        return Observable.fromCallable(new Callable<Boolean>() {
-            @Override
-            public Boolean call() throws Exception {
-                send(sendData);
-                return Boolean.TRUE;
-            }
-        });
+        return Observable.create(getRxSendSource(sendData));
     }
 
     /**

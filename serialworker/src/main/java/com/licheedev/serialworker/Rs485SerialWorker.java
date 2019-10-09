@@ -2,12 +2,15 @@ package com.licheedev.serialworker;
 
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import com.licheedev.myutils.LogPlus;
 import com.licheedev.serialworker.core.DataReceiver;
 import com.licheedev.serialworker.core.Reactivie;
 import com.licheedev.serialworker.core.RecvData;
 import com.licheedev.serialworker.core.SendData;
 import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.exceptions.CompositeException;
+import io.reactivex.plugins.RxJavaPlugins;
 import io.reactivex.schedulers.Schedulers;
 import java.io.IOException;
 import java.util.concurrent.Callable;
@@ -157,10 +160,45 @@ public abstract class Rs485SerialWorker<S extends SendData, R extends RecvData>
     R sendNoThrow(final S sendData) {
         try {
             return send(sendData);
-        } catch (Exception e) {
-            LogPlus.w(TAG, e);
+        } catch (Throwable e) {
+            //LogPlus.w(TAG, e);
             return null;
         }
+    }
+
+    /**
+     * Rx发送数据源
+     *
+     * @param sendData
+     * @return
+     */
+    @NonNull
+    private ObservableOnSubscribe<R> getRxSendSource(final S sendData) {
+        return new ObservableOnSubscribe<R>() {
+            @Override
+            public void subscribe(ObservableEmitter<R> emitter) throws Exception {
+
+                boolean terminated = false;
+                try {
+                    R send = send(sendData);
+                    if (!emitter.isDisposed()) {
+                        terminated = true;
+                        emitter.onNext(send);
+                        emitter.onComplete();
+                    }
+                } catch (Throwable t) {
+                    if (terminated) {
+                        RxJavaPlugins.onError(t);
+                    } else if (!emitter.isDisposed()) {
+                        try {
+                            emitter.onError(t);
+                        } catch (Throwable inner) {
+                            RxJavaPlugins.onError(new CompositeException(t, inner));
+                        }
+                    }
+                }
+            }
+        };
     }
 
     /**
@@ -173,12 +211,7 @@ public abstract class Rs485SerialWorker<S extends SendData, R extends RecvData>
     @Override
     public Observable<R> rxSend(final S sendData) {
 
-        return Observable.fromCallable(new Callable<R>() {
-            @Override
-            public R call() throws Exception {
-                return send(sendData);
-            }
-        });
+        return Observable.create(getRxSendSource(sendData));
     }
 
     /**
@@ -231,7 +264,7 @@ public abstract class Rs485SerialWorker<S extends SendData, R extends RecvData>
             };
             mSerialExecutor.execute(runnable);
         } catch (Exception e) {
-            LogPlus.w(TAG, e);
+            //LogPlus.w(TAG, e);
         }
     }
 }

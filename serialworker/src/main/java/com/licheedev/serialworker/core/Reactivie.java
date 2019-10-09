@@ -49,7 +49,7 @@ public interface Reactivie<S extends SendData, R extends RecvData> {
      * @return 响应的数据
      */
     @NonNull
-    R send(final S sendData) throws Exception;
+    R send(final S sendData) throws Throwable;
 
     /**
      * 收发数据，同步，会阻塞当前线程；
