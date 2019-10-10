@@ -70,13 +70,21 @@ public interface SerialWorker {
     void release();
 
     /**
+     * 获取数据接收器
+     *
+     * @return
+     */
+    DataReceiver getReceiver();
+
+    /**
      * 收到有效数据(在串口的接收线中运行)；
      * 一般可以使用{@link DataReceiver#adaptReceive(byte[], Object...)} 来封装收到的数据
      *
+     * @param receiver 参考{@link #getReceiver()}
      * @param allPack 完整的数据包
      * @param other 其他附加数据，如命令码CMD、除开帧头帧尾等附加位的真正数据DATAN
      */
-    void onReceiveValidData(final byte[] allPack, Object... other);
+    void onReceiveValidData(DataReceiver receiver, final byte[] allPack, Object... other);
 
     /**
      * 设置显示发送数据日志，默认全禁用

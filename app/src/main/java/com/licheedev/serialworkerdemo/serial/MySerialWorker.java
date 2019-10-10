@@ -18,7 +18,7 @@ public class MySerialWorker extends Rs232ReactiveSerialWorker<SendCommand, RecvC
     private final Handler mRecvHandler;
 
     public MySerialWorker(@Nullable Handler recvHandler) {
-        mReceiver = new MyDataReceiver(this);
+        mReceiver = new MyDataReceiver();
         mRecvHandler = recvHandler;
     }
 
@@ -30,7 +30,7 @@ public class MySerialWorker extends Rs232ReactiveSerialWorker<SendCommand, RecvC
     }
 
     @Override
-    protected DataReceiver<RecvCommand> getReceiver() {
+    public DataReceiver<RecvCommand> getReceiver() {
         return mReceiver;
     }
 

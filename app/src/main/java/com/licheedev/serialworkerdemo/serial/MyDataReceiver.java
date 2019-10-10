@@ -15,18 +15,16 @@ import java.nio.ByteBuffer;
  * description:
  */
 public class MyDataReceiver implements DataReceiver<RecvCommand> {
-
-    private final SerialWorker mSerialWorker;
+    
     private final ByteBuffer mByteBuffer;
 
-    public MyDataReceiver(SerialWorker serialWorker) {
+    public MyDataReceiver() {
         mByteBuffer = ByteBuffer.allocate(2048);
         mByteBuffer.clear();
-        mSerialWorker = serialWorker;
     }
 
     @Override
-    public boolean onReceive(final byte[] bytes, int offset, int length) {
+    public boolean onReceive(SerialWorker serialWorker, byte[] bytes, int offset, int length) {
 
         // 判断收到有效的数据包
         boolean receivedOkPack = false;
@@ -93,7 +91,7 @@ public class MyDataReceiver implements DataReceiver<RecvCommand> {
                 final int command = 0xff & allPack[4];
                 receivedOkPack = true; // 数据包有效
                 // 收到有效数据
-                onReceiveValidData(allPack, command, data);
+                serialWorker.onReceiveValidData(this, allPack, command, data);
             } else {
                 // 不一致则回到“第二位”，继续找到下一个3AA3
                 mByteBuffer.position(frameStart + 2);
@@ -104,11 +102,6 @@ public class MyDataReceiver implements DataReceiver<RecvCommand> {
         mByteBuffer.compact();
         // 收到有效数据包
         return receivedOkPack;
-    }
-
-    @Override
-    public void onReceiveValidData(byte[] allPack, Object... other) {
-        mSerialWorker.onReceiveValidData(allPack, other);
     }
 
     @Override

@@ -10,7 +10,7 @@
 	}
 	
 		dependencies {
-	        implementation 'com.github.licheedev:SerialWorker:1.0.1'
+	        implementation 'com.github.licheedev:SerialWorker:1.0.2'
 	}
 
 

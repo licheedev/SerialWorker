@@ -85,6 +85,13 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
     }
 
     /**
+     * 获取数据接收器
+     *
+     * @return
+     */
+    public abstract DR getReceiver();
+
+    /**
      * 默认读线程
      */
     private class InnerSerialReadThread extends Thread {
@@ -121,7 +128,7 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
                             }
 
                             // 处理接收到的数据
-                            receiver.onReceive(mRecvBuffer, 0, len);
+                            receiver.onReceive(BaseSerialWorker.this, mRecvBuffer, 0, len);
                         }
                     } else {
                         // 暂停一点时间，免得一直循环造成CPU占用率过高
@@ -251,13 +258,6 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
 
         // TODO: 如果子类有其他东西要释放，就在这里处理
     }
-
-    /**
-     * 获取数据接收器
-     *
-     * @return
-     */
-    protected abstract DR getReceiver();
 
     //@Override
     //public void onReceiveValidData(byte[] allPack, Object... other) {

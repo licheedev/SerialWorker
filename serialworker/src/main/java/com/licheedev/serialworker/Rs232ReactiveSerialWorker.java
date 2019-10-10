@@ -1,6 +1,5 @@
 package com.licheedev.serialworker;
 
-import android.support.annotation.CallSuper;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import com.licheedev.serialworker.core.DataReceiver;
@@ -30,16 +29,11 @@ public abstract class Rs232ReactiveSerialWorker<S extends SendData, R extends Re
 
     private static final String TAG = "Rs232ReactiveSerialWorker";
 
-    // 保存一个接收器备用
-    private final DataReceiver<R> mDefaultReceiver;
-
     private long mTimeout;
 
     private WaitRoom mWaitRoom;
 
     public Rs232ReactiveSerialWorker() {
-        // 获取一个备用
-        mDefaultReceiver = getReceiver();
     }
 
     /**
@@ -138,15 +132,18 @@ public abstract class Rs232ReactiveSerialWorker<S extends SendData, R extends Re
     }
 
     @Override
-    @CallSuper
-    public void onReceiveValidData(byte[] allPack, Object... other) {
-        // 封装数据
-        R receive = mDefaultReceiver.adaptReceive(allPack, other);
+    public void onReceiveValidData(DataReceiver dataReceiver, byte[] allPack, Object... other) {
+        try {
+            // 封装数据
+            R receive = (R) dataReceiver.adaptReceive(allPack, other);
 
-        if (receive != null) {
-            mWaitRoom.setResponse(receive);
-            // 再把数据暴露给子类
-            onReceiveValidData(receive);
+            if (receive != null) {
+                mWaitRoom.setResponse(receive);
+                // 再把数据暴露给子类
+                onReceiveValidData(receive);
+            }
+        } catch (Exception e) {
+            //e.printStackTrace();
         }
     }
 

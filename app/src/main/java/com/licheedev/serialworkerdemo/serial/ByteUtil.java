@@ -1,6 +1,5 @@
 package com.licheedev.serialworkerdemo.serial;
 
-import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -10,18 +9,18 @@ import java.util.Arrays;
  */
 public class ByteUtil {
 
-    //public static void main(String[] args) {
-    //    byte[] bytes = {
-    //        (byte) 0xab, 0x01, 0x11
-    //    };
-    //    String hexStr = bytes2HexStr(bytes);
-    //    System.out.println(hexStr);
-    //    System.out.println(hexStr2decimal(hexStr));
-    //    System.out.println(decimal2fitHex(570));
-    //    String adc = "abc";
-    //    System.out.println(str2HexString(adc));
-    //    System.out.println(bytes2HexStr(adc.getBytes()));
-    //}
+    private static char forDigit(int digit, int radix) {
+        if ((digit >= radix) || (digit < 0)) {
+            return '\0';
+        }
+        if ((radix < Character.MIN_RADIX) || (radix > Character.MAX_RADIX)) {
+            return '\0';
+        }
+        if (digit < 10) {
+            return (char) ('0' + digit);
+        }
+        return (char) ('A' - 10 + digit);
+    }
 
     /**
      * 字节数组转换成对应的16进制表示的字符串
@@ -36,11 +35,11 @@ public class ByteUtil {
         }
         char[] buffer = new char[2];
         for (int i = 0; i < src.length; i++) {
-            buffer[0] = Character.forDigit((src[i] >>> 4) & 0x0F, 16);
-            buffer[1] = Character.forDigit(src[i] & 0x0F, 16);
+            buffer[0] = forDigit((src[i] >>> 4) & 0x0F, 16);
+            buffer[1] = forDigit(src[i] & 0x0F, 16);
             builder.append(buffer);
         }
-        return builder.toString().toUpperCase();
+        return builder.toString();
     }
 
     /**
@@ -97,6 +96,13 @@ public class ByteUtil {
         return stringBuilder.toString();
     }
 
+    /**
+     * 数字前补零
+     *
+     * @param dicimal
+     * @param strLength
+     * @return
+     */
     public static String fitDecimalStr(int dicimal, int strLength) {
         StringBuilder builder = new StringBuilder(String.valueOf(dicimal));
         while (builder.length() < strLength) {
@@ -194,40 +200,7 @@ public class ByteUtil {
         }
         return result;
     }
-
-    /**
-     * int转2字节的byte数组 高字节在前低字节在后
-     *
-     * @param value
-     * @return
-     */
-    public static byte[] intToBytes2(int value) {
-        byte[] src = new byte[2];
-        src[0] = (byte) ((value >> 24) & 0xFF);
-        src[1] = (byte) ((value >> 16) & 0xFF);
-        src[2] = (byte) ((value >> 8) & 0xFF);
-        src[3] = (byte) (value & 0xFF);
-        return src;
-    }
-
-    public static String getXOR(String hex) {
-        if (hex.length() == 0) {
-            return null;
-        }
-        if (hex.length() % 2 != 0) {
-            hex = "0" + hex;
-        }
-        int or = 0;
-        for (int i = 0, size = hex.length(); i < size; i = i + 2) {
-            String subHex = hex.substring(i, i + 2);
-            or = or ^ Integer.parseInt(subHex, 16);
-        }
-        String xor = Integer.toHexString(or) + "";
-        if (xor.length() == 1) {
-            xor = "0" + xor;
-        }
-        return xor;
-    }
+    
 
     /**
      * 把16进制字符[0123456789abcde]（含大小写）转成字节
@@ -280,251 +253,15 @@ public class ByteUtil {
         }
     }
 
-    public static String HexString2binaryString(String hexString) {
-        if (hexString == null || hexString.length() % 2 != 0) return null;
-        String bString = "", tmp;
-        for (int i = 0; i < hexString.length(); i++) {
-            tmp = "0000" + Integer.toBinaryString(
-                Integer.parseInt(hexString.substring(i, i + 1), 16));
-            bString += tmp.substring(tmp.length() - 4);
-        }
-        return bString;
-    }
-
-    public static float BinaryStringToFloat(String binaryString) {
-        // float是32位，将这个binaryString左边补0补足32位，如果是Double补足64位。
-        String stringValue = LeftPad(binaryString, '0', 32);
-        // 首位是符号部分，占1位。
-        // 如果符号位是0则代表正数，1代表负数
-        int sign = stringValue.charAt(0) == '0' ? 1 : -1;
-        // 第2到9位是指数部分，float占8位，double占11位。
-        String exponentStr = stringValue.substring(1, 9);
-        // 将这个二进制字符串转成整数，由于指数部分加了偏移量（float偏移量是127，double是1023）
-        // 所以实际值要减去127
-        int exponent = Integer.parseInt(exponentStr, 2) - 127;
-        // 最后的23位是尾数部分，由于规格化数，小数点左边隐含一个1，现在加上
-        String mantissaStr = "1".concat(stringValue.substring(9, 32));
-        // 这里用double，尽量保持精度，最好用BigDecimal，这里只是方便计算所以用double
-        double mantissa = 0.0;
-
-        for (int i = 0; i < mantissaStr.length(); i++) {
-            final int intValue = Character.getNumericValue(mantissaStr.charAt(i));
-            // 计算小数部分，具体请查阅二进制小数转10进制数相关资料
-            mantissa += (intValue * Math.pow(2, -i));
-        }
-        // 根据IEEE 754 标准计算：符号位 * 2的指数次方 * 尾数部分
-        return (float) (sign * Math.pow(2, exponent) * mantissa);
-    }
-
-    private static String LeftPad(final String str, final char padChar, int length) {
-        final int repeat = length - str.length();
-
-        if (repeat <= 0) {
-            return str;
-        }
-        final char[] buf = new char[repeat];
-        for (int i = 0; i < buf.length; i++) {
-            buf[i] = padChar;
-        }
-        return new String(buf).concat(str);
-    }
-
-    /*--------------------------------------------------------------*/
-
-    /**
-     * 含有1字节的负数16进制转的10进制数据
-     *
-     * @param num 一字节的16进制数据
-     */
-    public static String get10(String num) {
-        long number = Long.parseLong(num, 16);
-        if (number > 50) {
-            long b = number - 255;
-            return String.valueOf(b);
-        } else {
-            return String.valueOf(number);
-        }
-    }
-
-    /**
-     * 含有1字节的负数16进制转的10进制数据
-     *
-     * @param num 一字节的16进制数据
-     */
-    public static String get10(String num, int length) {
-
-        String s2 = String.valueOf(Long.parseLong(num, 16));
-        if (s2.length() == length) {
-            return s2;
-        } else {
-            if (s2.length() > 4) {
-                return String.valueOf((Integer.parseInt(s2) - 65535));
-            } else {
-                String t1 = s2;
-                int i = length - t1.length();
-                for (int j = 0; j < i; j++) {
-                    t1 = "0" + t1;
-                }
-                return t1;
-            }
-        }
-    }
-
-    /**
-     * 10进制转的16进制数据
-     *
-     * @param num 10进制的整数数据
-     * @param length 数据位数,位数不够前补0
-     */
-    public static String get16(String num, int length) {
-        long number = Long.parseLong(num);
-        if (number < 0) {
-            long c = number + 255;
-            String s = ByteUtil.decimal2fitHex(c);
-            if (s.length() == length) {
-                return s;
-            } else {
-                String t = s;
-                int i = length - t.length();
-                for (int j = 0; j < i; j++) {
-                    t = "0" + t;
-                }
-                return t;
-            }
-        } else {
-            String s2 = ByteUtil.decimal2fitHex(number);
-            if (s2.length() == length) {
-                return s2;
-            } else {
-                String t1 = s2;
-                int i = length - t1.length();
-                for (int j = 0; j < i; j++) {
-                    t1 = "0" + t1;
-                }
-                return t1;
-            }
-        }
-    }
-
-    /**
-     * 10进制转换16进制
-     *
-     * @param data 10进制的整数数据
-     * @param length 数据位数,位数不够前补0
-     */
-    public static String parse10Data(int data, int length) {
-        String s1 = String.valueOf(data);
-        String s = Integer.toHexString(Integer.parseInt(s1));
-        if (s1.length() == length) {
-            return s;
-        } else {
-            String t = s;
-            int i = length - t.length();
-            for (int j = 0; j < i; j++) {
-                t = "0" + t;
-            }
-            return t;
-        }
-    }
-
-    /**
-     * 10进制转换16进制
-     *
-     * @param data 10进制的整数数据
-     * @param length 数据位数,位数不够前补0
-     */
-    public static String parse10Data(String data, int length) {
-        String s = Integer.toHexString(Integer.parseInt(data));
-        if (data.length() == s.length()) {
-            return s;
-        } else {
-            String t = s;
-            int i = length - t.length();
-            for (int j = 0; j < i; j++) {
-                t = "0" + t;
-            }
-            return t;
-        }
-    }
-
-    /**
-     * 将10进制数值  转换成16进制字符串(已处理过负数的情况)
-     */
-    public static String parseTo16(long n) {
-        if (n < 0) {
-            String result = ByteUtil.decimal2fitHex(~Math.abs(n) + 1);
-            int length = result.lastIndexOf("F");
-            String temp = result.substring(length);
-            if (temp.length() % 2 != 0) temp = "F" + temp;
-            return temp;
-        }
-
-        return ByteUtil.decimal2fitHex(n);
-    }
-
-    /**
-     * 将16进制字符串转为10 进制(已处理过负数的情况)
-     *
-     * @param hex 被转换的16进制字符串
-     */
-    public static long parseTo10(String hex) {
-        int length = hex.length();
-        hex = hex.toUpperCase();
-        BigInteger b = new BigInteger(hex, 16);
-        if (hex.startsWith("F")) {
-            //负数
-            String temp = parseTo16(~(b.intValue() - 1));
-            if (temp.length() > length) temp = temp.substring(temp.length() - length);
-            return -new BigInteger(temp, 16).intValue();
-        } else {
-            //正数
-            return b.intValue();
-        }
-    }
-
-    /**
-     * 16进制转ASCII
-     *
-     * @param hex
-     * @return
-     */
-    public static String hex2Str(String hex) {
-        StringBuilder sb = new StringBuilder();
-        StringBuilder temp = new StringBuilder();
-        //49204c6f7665204a617661 split into two characters 49, 20, 4c...
-        for (int i = 0; i < hex.length() - 1; i += 2) {
-            //grab the hex in pairs
-            String output = hex.substring(i, (i + 2));
-            //convert hex to decimal
-            int decimal = Integer.parseInt(output, 16);
-            //convert the decimal to character
-            sb.append((char) decimal);
-            temp.append(decimal);
-        }
-        return sb.toString();
-    }
-
-    /**
-     * 十六进制转正负数
-     * (2个字节的)
-     */
-    public static int parseHex4(String num) {
-        if (num.length() != 4) {
-            throw new NumberFormatException("Wrong length: " + num.length() + ", must be 4.");
-        }
-        int ret = Integer.parseInt(num, 16);
-        ret = ((ret & 0x8000) > 0) ? (ret - 0x10000) : (ret);
-        return ret;
-    }
-
     /**
      * 转换二进制数值
+     *
      * @param value 要转换的数值
      * @param byteLen 该值占用的字节大小
      * @return
      */
     public static String toBinString(long value, int byteLen) {
-        
+
         int bitLen = byteLen * 8;
         char[] chars = new char[bitLen];
         Arrays.fill(chars, '0');
@@ -535,7 +272,25 @@ public class ByteUtil {
             }
             value >>>= 1;
         } while (value != 0 && charPos > 0);
-        
+
         return new String(chars);
+    }
+
+    /**
+     * 异或校验和
+     *
+     * @param bytes
+     * @param offset
+     * @param len
+     * @return
+     */
+    public static byte getXOR(byte[] bytes, int offset, int len) {
+        // 计算校验和 
+        byte toDiff = 0;
+        // 校验和为除开校验位外的所有数据做异或
+        for (int i = 0; i < len; i++) {
+            toDiff = (byte) (toDiff ^ bytes[i + offset]);
+        }
+        return toDiff;
     }
 }

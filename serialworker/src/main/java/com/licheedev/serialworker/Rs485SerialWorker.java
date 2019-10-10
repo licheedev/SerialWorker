@@ -29,13 +29,11 @@ public abstract class Rs485SerialWorker<S extends SendData, R extends RecvData>
 
     private static final String TAG = "Rs232SerialWorker";
 
-    // 保存一个接收器备用
-    private final DataReceiver<R> mDefaultReceiver;
     private WaitRoom<R> mWaitRoom;
     private long mTimeout;
 
     public Rs485SerialWorker() {
-        mDefaultReceiver = getReceiver();
+
     }
 
     @Override
@@ -116,14 +114,19 @@ public abstract class Rs485SerialWorker<S extends SendData, R extends RecvData>
     }
 
     @Override
-    public void onReceiveValidData(byte[] allPack, Object... other) {
-        // 封装数据
-        R receive = mDefaultReceiver.adaptReceive(allPack, other);
-        // *设置响应
-        if (mWaitRoom != null) {
-            mWaitRoom.setResponse(receive);
-            // 再把数据暴露给子类
-            onReceiveValidData(receive);
+    public void onReceiveValidData(DataReceiver dataReceiver, byte[] allPack, Object... other) {
+
+        try {
+            // 封装数据
+            R receive = (R) dataReceiver.adaptReceive(allPack, other);
+            // *设置响应
+            if (mWaitRoom != null) {
+                mWaitRoom.setResponse(receive);
+                // 再把数据暴露给子类
+                onReceiveValidData(receive);
+            }
+        } catch (Exception e) {
+            //e.printStackTrace();
         }
     }
 
