@@ -1,7 +1,9 @@
-package com.licheedev.serialworker.core;
+package com.licheedev.serialworker.worker;
 
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import com.licheedev.serialworker.data.RecvData;
+import com.licheedev.serialworker.data.SendData;
 import io.reactivex.Observable;
 import io.reactivex.schedulers.Schedulers;
 

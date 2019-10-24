@@ -1,7 +1,7 @@
-package com.licheedev.serialworker;
+package com.licheedev.serialworker.data;
 
 import android.os.SystemClock;
-import com.licheedev.serialworker.core.RecvData;
+import com.licheedev.serialworker.data.RecvData;
 
 /**
  * 接收的数据，封装了接收的时间

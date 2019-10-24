@@ -1,8 +1,8 @@
-package com.licheedev.serialworker;
+package com.licheedev.serialworker.worker;
 
 import android.support.annotation.NonNull;
 import com.licheedev.serialworker.core.DataReceiver;
-import com.licheedev.serialworker.core.SendData;
+import com.licheedev.serialworker.data.SendData;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;

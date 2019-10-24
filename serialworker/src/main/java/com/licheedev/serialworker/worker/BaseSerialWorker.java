@@ -1,10 +1,12 @@
-package com.licheedev.serialworker;
+package com.licheedev.serialworker.worker;
 
 import android.os.SystemClock;
 import android.serialport.SerialPort;
 import com.licheedev.myutils.LogPlus;
+import com.licheedev.serialworker.Util;
 import com.licheedev.serialworker.core.DataReceiver;
 import com.licheedev.serialworker.core.SerialWorker;
+import com.licheedev.serialworker.core.ValidData;
 import io.reactivex.Single;
 import io.reactivex.SingleObserver;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -100,11 +102,14 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
 
         public InnerSerialReadThread() {
             // 接收收据缓存
-            mRecvBuffer = new byte[1024];
+            mRecvBuffer = new byte[2048];
         }
 
         @Override
         public void run() {
+
+            // 用来容纳有效数据的
+            ValidData validData = new ValidData();
 
             DR receiver = getReceiver();
             // 读之前先reset一下
@@ -128,11 +133,11 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
                             }
 
                             // 处理接收到的数据
-                            receiver.onReceive(BaseSerialWorker.this, mRecvBuffer, 0, len);
+                            receiver.onReceive(validData, mRecvBuffer, 0, len);
                         }
                     } else {
                         // 暂停一点时间，免得一直循环造成CPU占用率过高
-                        SystemClock.sleep(1);
+                        SystemClock.sleep(10);
                     }
                 } catch (Exception e) {
                     LogPlus.w(TAG, "读取数据失败", e);

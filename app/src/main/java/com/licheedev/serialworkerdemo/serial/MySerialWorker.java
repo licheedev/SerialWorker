@@ -3,7 +3,7 @@ package com.licheedev.serialworkerdemo.serial;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import com.licheedev.serialworker.Rs232ReactiveSerialWorker;
+import com.licheedev.serialworker.worker.Rs232ReactiveSerialWorker;
 import com.licheedev.serialworker.core.DataReceiver;
 import com.licheedev.serialworkerdemo.serial.command.RecvCommand;
 import com.licheedev.serialworkerdemo.serial.command.SendCommand;

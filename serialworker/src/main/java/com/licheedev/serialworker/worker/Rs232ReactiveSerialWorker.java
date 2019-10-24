@@ -1,11 +1,10 @@
-package com.licheedev.serialworker;
+package com.licheedev.serialworker.worker;
 
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import com.licheedev.serialworker.core.DataReceiver;
-import com.licheedev.serialworker.core.Reactivie;
-import com.licheedev.serialworker.core.RecvData;
-import com.licheedev.serialworker.core.SendData;
+import com.licheedev.serialworker.data.RecvData;
+import com.licheedev.serialworker.data.SendData;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
@@ -18,24 +17,29 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 /**
- * 用于半双工的rs485设备，请求应答必须串行执行，一个请求应答（或异常）未结束，下一请求不允许执行；
- * 适用于不会主动上报数据，只响应上位机命令的串口设备。
+ * 用于全双工的rs232设备，但是与{@link Rs232SerialWorker}不同的时。
+ * 此类实现了，上位机发送命令后，会同步返回对应的相应数据，同时允许设备主动上报心跳、状态等数据
  *
  * @param <S> 发送的数据类型
  * @param <R> 接收的数据类型
  */
-public abstract class Rs485SerialWorker<S extends SendData, R extends RecvData>
+public abstract class Rs232ReactiveSerialWorker<S extends SendData, R extends RecvData>
     extends BaseSerialWorker<DataReceiver<R>> implements Reactivie<S, R> {
 
-    private static final String TAG = "Rs232SerialWorker";
+    private static final String TAG = "Rs232ReactiveSerialWorker";
 
-    private WaitRoom<R> mWaitRoom;
     private long mTimeout;
 
-    public Rs485SerialWorker() {
+    private WaitRoom mWaitRoom;
 
+    public Rs232ReactiveSerialWorker() {
     }
 
+    /**
+     * 获取超时
+     *
+     * @return
+     */
     @Override
     public long getTimeout() {
         return mTimeout;
@@ -53,20 +57,27 @@ public abstract class Rs485SerialWorker<S extends SendData, R extends RecvData>
 
     /**
      * 等待响应数据
-     *
-     * @param <R>
      */
-    private static class WaitRoom<R> {
+    private class WaitRoom {
 
+        private final S mSendData;
         private R mResponse;
 
-        WaitRoom() {
+        WaitRoom(S sendData) {
+            mSendData = sendData;
         }
 
         synchronized void setResponse(R response) {
-            mResponse = response;
-            // 收到后，就不要等了
-            notify();
+            // 检查一下响应
+            if (mResponse != null) {
+                return;
+            }
+
+            if (isMyResponse(mSendData, response)) {
+                mResponse = response;
+                // 收到后，就不要等了
+                notify();
+            }
         }
 
         synchronized R getResponse(long timeout) {
@@ -89,38 +100,43 @@ public abstract class Rs485SerialWorker<S extends SendData, R extends RecvData>
     }
 
     /**
+     * 判断收到的数据是否未所发送的命令的响应
+     *
+     * @param sendData 发送的数据
+     * @param recvData 接收的数据
+     * @return
+     */
+    protected abstract boolean isMyResponse(S sendData, R recvData);
+
+    /**
      * 在当前线程发送数据
      *
      * @param sendData
      */
     private R sendOnCurrentThread(final S sendData) throws IOException, TimeoutException {
 
-        mWaitRoom = new WaitRoom<>();
+        mWaitRoom = new WaitRoom(sendData);
 
         byte[] bytes = sendData.toBytes();
         // 更新发送时间
         sendData.updateSendTime();
         // 发送
         sendOnCurrentThread(bytes, 0, bytes.length);
-        // *等待响应
+        // 等待数据返回
         R response = mWaitRoom.getResponse(getTimeout());
-
-        // 如果没数据，表示超时了
         if (response == null) {
-            throw new TimeoutException("RS485 timeout，send=" + sendData);
+            throw new TimeoutException("RS232 timeout，send=" + sendData);
         }
-
         return response;
     }
 
     @Override
     public void onReceiveValidData(DataReceiver dataReceiver, byte[] allPack, Object... other) {
-
         try {
             // 封装数据
             R receive = (R) dataReceiver.adaptReceive(allPack, other);
-            // *设置响应
-            if (mWaitRoom != null) {
+
+            if (receive != null) {
                 mWaitRoom.setResponse(receive);
                 // 再把数据暴露给子类
                 onReceiveValidData(receive);
@@ -231,6 +247,7 @@ public abstract class Rs485SerialWorker<S extends SendData, R extends RecvData>
 
     @Override
     public Observable<R> rxSendNoThrow(final S sendData) {
+
         return Observable.fromCallable(new Callable<R>() {
             @Override
             public R call() throws Exception {
@@ -243,8 +260,12 @@ public abstract class Rs485SerialWorker<S extends SendData, R extends RecvData>
         });
     }
 
+    /**
+     * @param sendData
+     * @return
+     */
     @Override
-    public Observable<R> rxSendNoThrowOnIo(S sendData) {
+    public Observable<R> rxSendNoThrowOnIo(final S sendData) {
         return rxSendNoThrow(sendData).subscribeOn(Schedulers.io());
     }
 
@@ -259,7 +280,11 @@ public abstract class Rs485SerialWorker<S extends SendData, R extends RecvData>
                 @Override
                 public void run() {
                     try {
-                        sendOnCurrentThread(sendData);
+                        byte[] bytes = sendData.toBytes();
+                        // 更新发送时间
+                        sendData.updateSendTime();
+                        // 发送
+                        sendOnCurrentThread(bytes, 0, bytes.length);
                     } catch (Exception e) {
                         //e.printStackTrace();
                     }

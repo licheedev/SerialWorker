@@ -1,7 +1,7 @@
-package com.licheedev.serialworker;
+package com.licheedev.serialworker.data;
 
 import android.os.SystemClock;
-import com.licheedev.serialworker.core.SendData;
+import com.licheedev.serialworker.data.SendData;
 
 /**
  * 发送的数据，封装了发送的时间

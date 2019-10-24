@@ -1,4 +1,4 @@
-package com.licheedev.serialworker.core;
+package com.licheedev.serialworker.data;
 
 import android.os.SystemClock;
 

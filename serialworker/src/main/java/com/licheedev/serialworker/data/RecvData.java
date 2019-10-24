@@ -1,4 +1,4 @@
-package com.licheedev.serialworker.core;
+package com.licheedev.serialworker.data;
 
 /**
  * 表示接收到的数据
