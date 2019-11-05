@@ -1,15 +1,15 @@
 package com.licheedev.serialworkerdemo.serial.command.recv;
 
-import com.licheedev.serialworkerdemo.serial.MySerialWorker;
+import com.licheedev.serialworkerdemo.serial.DoorSerialWorker;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 
 /**
  * 控制板开锁应答命令
  *
- * @see MySerialWorker
+ * @see DoorSerialWorker
  */
-public class Recv5DStatus extends BaseRecvCommand {
+public class Recv5DStatus extends RecvBase {
 
     /**
      * 门已关闭
@@ -30,8 +30,8 @@ public class Recv5DStatus extends BaseRecvCommand {
     private final byte[] mTemps;
     private String mTemperature;
 
-    public Recv5DStatus(byte[] allPack, byte[] data) {
-        super(allPack, data);
+    public Recv5DStatus(byte[] allPack, int cmd, byte[] data) {
+        super(allPack, cmd, data);
         // 温度，占5个字节
         mTemps = Arrays.copyOfRange(data, 0, 5);
         mTemperature = getAscii(mTemps);

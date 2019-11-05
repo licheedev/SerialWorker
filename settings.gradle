@@ -1,1 +1,1 @@
-include ':app', ':serialworker'
+include ':app', ':serialworker', ':serialport_tool_copy'

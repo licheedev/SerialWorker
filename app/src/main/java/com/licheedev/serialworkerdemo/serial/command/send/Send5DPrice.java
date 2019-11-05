@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * 设置数码管价格
  */
-public class Send5DPrice extends BaseSendCommand {
+public class Send5DPrice extends SendBase {
 
     private final byte[] mData;
 

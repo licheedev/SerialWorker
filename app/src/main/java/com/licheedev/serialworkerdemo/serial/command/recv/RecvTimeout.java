@@ -7,11 +7,6 @@ public class RecvTimeout implements RecvCommand {
     public static final RecvTimeout INST = new RecvTimeout();
 
     @Override
-    public String toString() {
-        return "接收数据超时";
-    }
-
-    @Override
     public int getCmd() {
         return 0;
     }
@@ -19,5 +14,15 @@ public class RecvTimeout implements RecvCommand {
     @Override
     public long getRecvTime() {
         return 0;
+    }
+
+    @Override
+    public byte[] getAllPack() {
+        return new byte[0];
+    }
+
+    @Override
+    public String toString() {
+        return "RECV_TIMEOUT";
     }
 }

@@ -1,20 +1,19 @@
 package com.licheedev.serialworkerdemo.serial.command.recv;
 
-import com.licheedev.serialworkerdemo.serial.MySerialWorker;
+import com.licheedev.serialworkerdemo.serial.DoorSerialWorker;
 
 /**
  * 控制板开锁应答命令
  *
- * @see MySerialWorker
+ * @see DoorSerialWorker
  */
-public class RecvA4OpenDoor extends BaseRecvCommand {
+public class RecvA4OpenDoor extends RecvBase {
 
     private final int mLockNum;
     private final int mResult;
 
-    public RecvA4OpenDoor(byte[] allPack, byte[] data) {
-        super(allPack, data);
-
+    public RecvA4OpenDoor(byte[] allPack, int cmd, byte[] data) {
+        super(allPack, cmd, data);
         mLockNum = 0xff & data[0];
         mResult = 0xff & data[1];
     }

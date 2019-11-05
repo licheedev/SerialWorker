@@ -5,7 +5,7 @@ import com.licheedev.serialworkerdemo.serial.Protocol;
 /**
  * 4．读取控制板温度参数28
  */
-public class Send28ReadTemp extends BaseSendCommand {
+public class Send28ReadTemp extends SendBase {
 
     private final byte[] mData;
 

@@ -5,7 +5,7 @@ import com.licheedev.serialworkerdemo.serial.Protocol;
 /**
  * 5．设置控制板温度参数A8
  */
-public class SendA8SetTemp extends BaseSendCommand {
+public class SendA8SetTemp extends SendBase {
 
     private final byte[] mData;
 

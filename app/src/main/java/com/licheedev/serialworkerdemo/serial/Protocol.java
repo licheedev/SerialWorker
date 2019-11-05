@@ -16,11 +16,6 @@ public interface Protocol {
      */
     long RECEIVE_TIME_OUT = 3000;
 
-    /**
-     * 两次接收数据之间，判断已不再会有数据的超时时间，毫秒
-     */
-    long RECEIVE_INTERVAL_TIME_OUT = 20;
-
     //////////////////////帧结构
     /**
      * 帧头
@@ -28,21 +23,30 @@ public interface Protocol {
     byte[] FRAME_HEAD = { 0x3B, (byte) 0xB3 };
 
     /**
-     * 协议版本
-     */
-    byte VER = 0x10;
-
-    /**
      * 最小数据包的长度(除开数据的N个字节）
-     * 帧头  数据帧类型  数据长度  命令码  协议版本     数据    校验和
-     * 2       1         1          1      1          N        1
+     * 数据长度=命令码+数据N
+     * 帧头   数据长度  命令码     数据    校验和
+     * 2       2         1        N       1
      */
-    int MIN_PACK_LEN = 2 + 1 + 1 + 1 + 1 + 1;
+    int MIN_PACK_LEN = 2 + 2 + 1 + 1;
 
     /**
-     * 	数据帧类型：安卓板发送固定为0x00, 控制板发送固定为0x01
+     * 数据：0-N字节，N小于等于255
      */
-    byte DATA_TYPE = 0x00;
+    int MAX_N = 255;
+
+    /**
+     * 命令长度下标
+     */
+    int COMMAND_LEN_POS = 2;
+    /**
+     * 命令码下标
+     */
+    int COMMAND_POS = 2 + 2;
+    /**
+     * 数据域在数据包中的下标
+     */
+    int DATA_N_POS = 2 + 2 + 1;
 
     ///////////////////////////// 下面是具体的协议
     /**
@@ -66,11 +70,6 @@ public interface Protocol {
      */
     int CMD_A8_SET_TEMP = 0xA8;
     /**
-     * 6．控制板主动上传状态（每1秒发送一次，门状态改变立即触发）5C
-     */
-    @Deprecated
-    int CMD_5C_STATUS_UPDATE = 0x5C;
-    /**
      * 7．控制板主动上传状态（每1秒发送一次，门状态改变立即触发）5D
      */
     int CMD_5D_STATUS_UPDATE = 0x5D;
@@ -80,7 +79,7 @@ public interface Protocol {
      */
     @IntDef({
         CMD_A4_OPEN_DOOR, CMD_A6_CTRLL_LIGHT, CMD_A7_CTRL_SIGNAL, CMD_28_READ_TEMP, CMD_A8_SET_TEMP,
-        CMD_5C_STATUS_UPDATE, CMD_5D_STATUS_UPDATE
+        CMD_5D_STATUS_UPDATE
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface Cmd {

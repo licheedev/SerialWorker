@@ -1,13 +1,13 @@
 package com.licheedev.serialworkerdemo.serial.command.recv;
 
-import com.licheedev.serialworkerdemo.serial.MySerialWorker;
+import com.licheedev.serialworkerdemo.serial.DoorSerialWorker;
 
 /**
  * 5．设置控制板温度参数A8
  *
- * @see MySerialWorker
+ * @see DoorSerialWorker
  */
-public class RecvSetReadTemp extends BaseRecvCommand {
+public class RecvSetReadTemp extends RecvBase {
 
     /**
      * 温度控制类型	1	0x00：无效，不控制，0x01：制冷，0x02：加热
@@ -22,9 +22,8 @@ public class RecvSetReadTemp extends BaseRecvCommand {
      */
     private final int mDowmLimit;
 
-    public RecvSetReadTemp(byte[] allPack, byte[] data) {
-        super(allPack, data);
-
+    public RecvSetReadTemp(byte[] allPack, int cmd, byte[] data) {
+        super(allPack, cmd, data);
         mCtrlType = data[0];
         mUpLimit = data[1];
         mDowmLimit = data[2];

@@ -5,7 +5,7 @@ import com.licheedev.serialworkerdemo.serial.Protocol;
 /**
  * 1．安卓板开锁发送命令A4
  */
-public class SendA4OpenDoor extends BaseSendCommand {
+public class SendA4OpenDoor extends SendBase {
 
     private final byte[] mData;
     private final int mLockNum;

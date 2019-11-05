@@ -1,6 +1,6 @@
 package com.licheedev.serialworkerdemo.serial.command;
 
-import com.licheedev.serialworker.data.SendData;
+import com.licheedev.serialworker.core.SendData;
 
 /**
  * 发送的数据

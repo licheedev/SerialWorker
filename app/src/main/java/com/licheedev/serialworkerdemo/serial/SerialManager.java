@@ -4,13 +4,19 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.serialport.SerialPort;
+import com.licheedev.serialworker.core.Callback;
+import com.licheedev.serialworker.core.SerialWorker;
 import com.licheedev.serialworkerdemo.serial.command.RecvCommand;
 import com.licheedev.serialworkerdemo.serial.command.SendCommand;
 import com.licheedev.serialworkerdemo.serial.command.recv.Recv5DStatus;
-import com.licheedev.serialworkerdemo.serial.command.recv.RecvTimeout;
+import com.licheedev.serialworkerdemo.serial.command.recv.RecvA4OpenDoor;
+import com.licheedev.serialworkerdemo.serial.command.recv.RecvSetReadTemp;
+import com.licheedev.serialworkerdemo.serial.command.send.SendA4OpenDoor;
+import com.licheedev.serialworkerdemo.serial.command.send.SendA8SetTemp;
 import io.reactivex.Observable;
 import io.reactivex.subjects.PublishSubject;
 import io.reactivex.subjects.Subject;
+import org.greenrobot.eventbus.EventBus;
 
 /**
  * 串口管理器
@@ -19,13 +25,20 @@ public class SerialManager {
 
     private static final String TAG = "SerialManager";
 
+    private static String DOOR_SERIAL = "/dev/ttyS0";
+    private static int DOOR_BAUDRATE = 9600;
+
+    private static String CARD_SERIAL = "/dev/ttyS1";
+    private static int CARD_BAUDRATE = 115200;
+
     private static volatile SerialManager sManager = null;
     private final HandlerThread mDispatchThread;
     private final Handler mDispatchThreadHandler;
 
-    private final MySerialWorker mMySerialWorker;
+    private final DoorSerialWorker mDoorSerialWorker;
     private final Subject<Recv5DStatus> mStateSubject;
     private final Observable<Recv5DStatus> mRxState;
+    private final CardReaderWorker mCardSerialWorker;
 
     /**
      * [单例]获取串口管理器
@@ -51,20 +64,20 @@ public class SerialManager {
 
         // 用来rx接受新的状态消息的
         mStateSubject = PublishSubject.<Recv5DStatus>create().toSerialized();
-        // 参考 https://github.com/JakeWharton/RxReplayingShare
         mRxState = mStateSubject.hide();
 
         mDispatchThread = new HandlerThread("serial-dispatch-thread");
         mDispatchThread.start();
         mDispatchThreadHandler = new Handler(mDispatchThread.getLooper());
 
-        mMySerialWorker = new MySerialWorker(mDispatchThreadHandler);
+        // 
+        mDoorSerialWorker = new DoorSerialWorker(mDispatchThreadHandler);
         // 设置超时
-        mMySerialWorker.setTimeout(Protocol.RECEIVE_TIME_OUT);
+        mDoorSerialWorker.setTimeout(Protocol.RECEIVE_TIME_OUT);
         // 开启打印日志
-        mMySerialWorker.enableLog(true, true);
-
-        mMySerialWorker.setReceiveCallback(new MySerialWorker.ReceiveCallback() {
+        mDoorSerialWorker.enableLog(true, true);
+        // 设置回调
+        mDoorSerialWorker.setReceiveCallback(new DoorSerialWorker.ReceiveCallback() {
 
             @Override
             public void onReceive(RecvCommand recvCommand) {
@@ -76,9 +89,19 @@ public class SerialManager {
                         // 发送到rx上面
                         mStateSubject.onNext(recv);
                         // 发送事件
-                        //EventBus.getDefault().post(recv);
+                        EventBus.getDefault().post(recv);
                         break;
                 }
+            }
+        });
+
+        // 刷卡器
+        mCardSerialWorker = new CardReaderWorker(mDispatchThreadHandler);
+        mCardSerialWorker.setCardCallback(new CardReaderWorker.CardCallback() {
+            @Override
+            public void onReadCard(String cardId) {
+                // 发送事件
+                EventBus.getDefault().post(cardId);
             }
         });
     }
@@ -92,29 +115,50 @@ public class SerialManager {
         return mRxState;
     }
 
-    /**
-     * 打开串口
-     *
-     * @return
-     */
-    public SerialPort openSerial(String device) {
-        return mMySerialWorker.openSerial(device, Protocol.SERIAL_BAUD_RATE);
+   public void initDevice() {
+        mDoorSerialWorker.openSerial(DOOR_SERIAL, DOOR_BAUDRATE, new SerialWorker.OpenCallback() {
+            @Override
+            public void onSuccess(SerialPort serialPort) {
+                // TODO: 2019/11/5  
+            }
+
+            @Override
+            public void onFailure(Throwable tr) {
+                // TODO: 2019/11/5  
+            }
+        });
+        mCardSerialWorker.openSerial(CARD_SERIAL, CARD_BAUDRATE, new SerialWorker.OpenCallback() {
+            @Override
+            public void onSuccess(SerialPort serialPort) {
+                // TODO: 2019/11/5  
+            }
+
+            @Override
+            public void onFailure(Throwable tr) {
+                // TODO: 2019/11/5  
+            }
+        });
     }
 
-    /**
-     * 关闭串口
-     */
-    public void closeSerial() {
-        mMySerialWorker.closeSerial();
+    public void sendCommand(SendCommand command, Callback<RecvCommand> callback) {
+        mDoorSerialWorker.send(command, callback);
+    }
+
+    public void openDoor(SendA4OpenDoor command, Callback<RecvA4OpenDoor> callback) {
+        mDoorSerialWorker.send(command, RecvA4OpenDoor.class, callback);
+    }
+
+    public Observable<RecvSetReadTemp> rxsetTemp(SendA8SetTemp command) {
+        return mDoorSerialWorker.rxSendOnIo(command, RecvSetReadTemp.class);
     }
 
     /**
      * 释放资源
      */
     public synchronized void release() {
-        sManager = null;
 
-        mMySerialWorker.release();
+        mDoorSerialWorker.release();
+        mCardSerialWorker.release();
         // 结束
         mStateSubject.onComplete();
 
@@ -123,59 +167,6 @@ public class SerialManager {
         } else {
             mDispatchThread.quit();
         }
-    }
-
-    public boolean isDeviceConnected() {
-        return mMySerialWorker.getSerialPort() != null;
-    }
-
-    /**
-     * 异步发送命令
-     *
-     * @param command
-     */
-    public void ayncSendCommand(SendCommand command) {
-        mMySerialWorker.asyncSend(command);
-    }
-
-    /**
-     * 同步发送命令，会抛异常
-     *
-     * @param command
-     * @return
-     * @throws Exception
-     */
-    public RecvCommand sendCommand(final SendCommand command) throws Exception {
-        return mMySerialWorker.send(command);
-    }
-
-    /**
-     * 同步发送命令，超时返回{@link RecvTimeout#INST}
-     *
-     * @param command
-     * @return
-     */
-    public RecvCommand sendCommandNoThrow(final SendCommand command) {
-        return mMySerialWorker.sendNoThrow(command);
-    }
-
-    /**
-     * rx方式发送命令，超时抛出异常。已经切换好线程
-     *
-     * @param command
-     * @return
-     */
-    public Observable<RecvCommand> rxSendCommand(final SendCommand command) {
-        return mMySerialWorker.rxSendOnIo(command);
-    }
-
-    /**
-     * rx方式发送命令，超时发射{@link RecvTimeout#INST}。已经切换好线程
-     *
-     * @param command
-     * @return
-     */
-    public Observable<RecvCommand> rxSendCommandNoThrow(final SendCommand command) {
-        return mMySerialWorker.rxSendNoThrowOnIo(command);
+        sManager = null;
     }
 }

@@ -1,30 +1,31 @@
 package com.licheedev.serialworker.worker;
 
-import android.os.SystemClock;
+import android.os.Handler;
+import android.os.Looper;
 import android.serialport.SerialPort;
+import android.support.annotation.Nullable;
 import com.licheedev.myutils.LogPlus;
-import com.licheedev.serialworker.Util;
 import com.licheedev.serialworker.core.DataReceiver;
+import com.licheedev.serialworker.core.InitSerialException;
 import com.licheedev.serialworker.core.SerialWorker;
 import com.licheedev.serialworker.core.ValidData;
-import io.reactivex.Single;
-import io.reactivex.SingleObserver;
-import io.reactivex.android.schedulers.AndroidSchedulers;
-import io.reactivex.disposables.Disposable;
-import io.reactivex.schedulers.Schedulers;
+import com.licheedev.serialworker.util.MyClock;
+import com.licheedev.serialworker.util.Util;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeoutException;
 
 /**
  * 基本的串口操作,默认会在打开串口的时候开线程进行读取，没有额外处理收发是否同步（不区分232还是485）
  */
-public abstract class BaseSerialWorker<DR extends DataReceiver> implements SerialWorker {
+public abstract class BaseSerialWorker implements SerialWorker {
 
     public static final String TAG = "SerialWorker";
 
@@ -32,16 +33,51 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
     protected OutputStream mOutputStream;
     protected SerialPort mSerialPort;
 
-    private InnerSerialReadThread mReadThread; // 读线程
+    private DefaultSerialReadThread mReadThread; // 读线程
 
     protected final ExecutorService mSerialExecutor;
 
     private boolean mLogSend = false; // 打印发送的数据
-    private boolean mLogRecv = false; // 打印接收的数据
+    private boolean mLogRecv = false; // 打印接收的数
+    protected final Handler mUiHandler;
 
     public BaseSerialWorker() {
         // 用来操作串口发送数据的单一线程池
         mSerialExecutor = Executors.newSingleThreadExecutor();
+        mUiHandler = new Handler(Looper.getMainLooper());
+    }
+
+    /**
+     * 通用的同步方法
+     *
+     * @param callable
+     * @param <T>
+     * @return
+     * @throws InterruptedException
+     * @throws ExecutionException
+     */
+    protected <T> T callOnSerialThread(Callable<T> callable)
+        throws InterruptedException, ExecutionException, InitSerialException, IOException,
+        TimeoutException {
+
+        try {
+            return mSerialExecutor.submit(callable).get();
+        } catch (ExecutionException e) {
+            //e.printStackTrace();
+            Throwable cause = e.getCause();
+
+            if (cause instanceof InitSerialException) {
+                throw ((InitSerialException) cause);
+            } else if (cause instanceof IOException) {
+                throw ((IOException) cause);
+            } else if (cause instanceof TimeoutException) {
+                throw ((TimeoutException) cause);
+            } else if (cause instanceof RuntimeException) {
+                throw ((RuntimeException) cause);
+            } else {
+                throw e;
+            }
+        }
     }
 
     /**
@@ -50,10 +86,10 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
      * @param devicePath
      * @param baudrate
      * @return
-     * @throws IOException
+     * @throws InitSerialException
      */
     private synchronized SerialPort doOpenSerial(String devicePath, int baudrate)
-        throws IOException {
+        throws InitSerialException {
 
         if (mSerialPort != null) {
             closeSerial();
@@ -71,36 +107,30 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
             // 清理数据
             closeSerial();
             // 跑出异常
-            throw e;
+            throw new InitSerialException(e);
         }
     }
 
     /**
      * 当串口打开成功时运行，可以用来打开读线程什么的。
-     * 默认开启了一个读线程{@link InnerSerialReadThread}不停读取数据，然后使用{@link DataReceiver}对数据进行处理;
+     * 默认开启了一个读线程{@link DefaultSerialReadThread}不停读取数据，然后使用{@link DataReceiver}对数据进行处理;
      * 如果需要完全控制读写，则可以重写这个方法。
      */
     protected void onSerialOpened(InputStream inputStream, OutputStream outputStream) {
         // 打开读线程
-        mReadThread = new InnerSerialReadThread();
+        mReadThread = new DefaultSerialReadThread();
         mReadThread.start();
     }
 
     /**
-     * 获取数据接收器
-     *
-     * @return
-     */
-    public abstract DR getReceiver();
-
-    /**
      * 默认读线程
      */
-    private class InnerSerialReadThread extends Thread {
+    private class DefaultSerialReadThread extends Thread {
 
         private final byte[] mRecvBuffer;
+        private boolean mRunning = true;
 
-        public InnerSerialReadThread() {
+        DefaultSerialReadThread() {
             // 接收收据缓存
             mRecvBuffer = new byte[2048];
         }
@@ -108,87 +138,136 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
         @Override
         public void run() {
 
+            DataReceiver receiver = newReceiver();
+            if (receiver != null) {
+                // 读之前先reset一下
+                receiver.resetCache();
+            }
+
             // 用来容纳有效数据的
             ValidData validData = new ValidData();
 
-            DR receiver = getReceiver();
-            // 读之前先reset一下
-            receiver.resetCache();
-
-            LogPlus.i(TAG, "开始读线程");
+            LogPlus.i(TAG, "Start Read Thread");
 
             int len;
 
-            while (!Thread.currentThread().isInterrupted()) {
-
+            while (mRunning) {
                 try {
-
+                    // 清空有效数据缓存
+                    validData.clear();
                     if (mInputStream.available() > 0) {
                         len = mInputStream.read(mRecvBuffer);
                         if (len > 0) {
-
                             // 打印日志
                             if (isLogRecv()) {
-                                LogPlus.i(TAG, "收到数据=" + Util.bytes2HexStr(mRecvBuffer, 0, len));
+                                LogPlus.i(TAG, "Recv=" + Util.bytes2HexStr(mRecvBuffer, 0, len));
                             }
 
-                            // 处理接收到的数据
-                            receiver.onReceive(validData, mRecvBuffer, 0, len);
+                            onReceiveData(mRecvBuffer, 0, len);
+
+                            if (receiver != null) {
+                                // 处理接收到的数据
+                                receiver.onReceive(validData, mRecvBuffer, 0, len);
+                                if (validData.size() > 0) {
+                                    // 处理有效的数据
+                                    handleValidData(validData, receiver);
+                                    validData.clear();
+                                }
+                            }
                         }
                     } else {
                         // 暂停一点时间，免得一直循环造成CPU占用率过高
-                        SystemClock.sleep(10);
+                        MyClock.sleep(10);
                     }
+
+                    notifyRunningReceive(mRunning);
                 } catch (Exception e) {
-                    LogPlus.w(TAG, "读取数据失败", e);
+                    LogPlus.w(TAG, "Read data failed", e);
                 }
                 //Thread.yield();
+
             }
 
-            // 完事后也reset一下
-            receiver.resetCache();
+            LogPlus.i(TAG, "Read Thread Finished");
+        }
 
-            LogPlus.i(TAG, "结束读进程");
+        /**
+         * 关闭读线程
+         */
+        void close() {
+            mRunning = false;
+            this.interrupt();
         }
     }
 
+    /**
+     * 同步打开串口，会阻塞线程
+     *
+     * @param devicePath 串口设备地址
+     * @param baudrate 串口波特率
+     * @return null表示打开串口失败
+     */
     @Override
     public SerialPort openSerial(final String devicePath, final int baudrate) {
         try {
-            return doOpenSerial(devicePath, baudrate);
+            return callOnSerialThread(new Callable<SerialPort>() {
+                @Override
+                public SerialPort call() throws Exception {
+                    return doOpenSerial(devicePath, baudrate);
+                }
+            });
         } catch (Exception e) {
             return null;
         }
     }
 
+    /**
+     * 异步打开串口
+     *
+     * @param devicePath 串口设备地址
+     * @param baudrate 串口波特率
+     * @param callback
+     */
     @Override
     public void openSerial(final String devicePath, final int baudrate,
         final OpenCallback callback) {
 
-        Single.fromCallable(new Callable<SerialPort>() {
-            @Override
-            public SerialPort call() throws Exception {
-                return doOpenSerial(devicePath, baudrate);
-            }
-        })
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe(new SingleObserver<SerialPort>() {
+        try {
+            mSerialExecutor.execute(new Runnable() {
                 @Override
-                public void onSubscribe(Disposable d) {
-
-                }
-
-                @Override
-                public void onSuccess(SerialPort serialPort) {
-                    callback.onSuccess(serialPort);
-                }
-
-                @Override
-                public void onError(Throwable e) {
-                    callback.onFailure(e);
+                public void run() {
+                    try {
+                        final SerialPort serialPort = doOpenSerial(devicePath, baudrate);
+                        if (callback != null) {
+                            mUiHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    callback.onSuccess(serialPort);
+                                }
+                            });
+                        }
+                    } catch (final Exception e) {
+                        if (callback != null) {
+                            mUiHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    callback.onFailure(e);
+                                }
+                            });
+                        }
+                    }
                 }
             });
+        } catch (final Exception e) {
+            if (callback != null) {
+                mUiHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        callback.onFailure(e);
+                    }
+                });
+            }
+        }
     }
 
     /**
@@ -200,7 +279,7 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
         // 关闭读线程
         if (mReadThread != null) {
             try {
-                mReadThread.interrupt();
+                mReadThread.close();
             } catch (Exception e) {
                 //e.printStackTrace();
             }
@@ -243,7 +322,8 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
      * @return
      */
     @Override
-    public synchronized SerialPort getSerialPort() {
+    public synchronized @Nullable
+    SerialPort getSerialPort() {
         return mSerialPort;
     }
 
@@ -264,8 +344,15 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
         // TODO: 如果子类有其他东西要释放，就在这里处理
     }
 
+    //@Nullable
     //@Override
-    //public void onReceiveValidData(byte[] allPack, Object... other) {
+    //public DataReceiver newReceiver() {
+    //    // TODO 返回数据接收器，可以返回null 
+    //    //return null;
+    //}
+
+    //@Override
+    //public void handleValidData(byte[] allPack, Object... other) {
     //    TODO 处理收到的有效数据
     //}
 
@@ -292,74 +379,53 @@ public abstract class BaseSerialWorker<DR extends DataReceiver> implements Seria
      * @param offset
      * @param len
      */
-    protected void sendOnCurrentThread(byte[] bytes, int offset, int len) throws IOException {
+    protected void rawSend(byte[] bytes, int offset, int len) throws IOException {
 
         if (len < 1) {
             return;
         }
 
         if (isLogSend()) {
-            LogPlus.i(TAG, "发送数据=" + Util.bytes2HexStr(bytes, 0, len));
+            LogPlus.i(TAG, "Send=" + Util.bytes2HexStr(bytes, 0, len));
         }
 
         mOutputStream.write(bytes, offset, len);
         mOutputStream.flush();
     }
 
-    /**
-     * 在当前线程发送数据，已try catch
-     *
-     * @param bytes
-     * @param offset
-     * @param len
-     * @throws IOException
-     */
-    protected void sendOnCurrentThreadNoThrow(byte[] bytes, int offset, int len) {
+    @Override
+    public void syncSend(final byte[] bytes, final int offset, final int length) {
+
         try {
-            sendOnCurrentThread(bytes, offset, len);
+            callOnSerialThread(new Callable<Object>() {
+                @Override
+                public Object call() throws Exception {
+                    rawSend(bytes, offset, length);
+                    return null;
+                }
+            });
         } catch (Exception e) {
+            //e.printStackTrace();
             // 不用管
         }
     }
 
-    /**
-     * 发送数据,同步，会阻塞调用的线程
-     *
-     * @param bytes
-     * @param offset
-     * @param length
-     */
-    public void sendData(final byte[] bytes, final int offset, final int length) {
-        try {
-            Runnable runnable = new Runnable() {
-                @Override
-                public void run() {
-                    sendOnCurrentThreadNoThrow(bytes, offset, length);
-                }
-            };
-            mSerialExecutor.submit(runnable).get();
-        } catch (Exception e) {
-            // 不用管
-        }
-    }
+    @Override
+    public void asyncSend(final byte[] bytes, final int offset, final int length) {
 
-    /**
-     * 异步发送数据
-     *
-     * @param bytes
-     * @param offset
-     * @param length
-     */
-    public void asyncSendData(final byte[] bytes, final int offset, final int length) {
         try {
-            Runnable runnable = new Runnable() {
+            mSerialExecutor.execute(new Runnable() {
                 @Override
                 public void run() {
-                    sendOnCurrentThreadNoThrow(bytes, offset, length);
+                    try {
+                        rawSend(bytes, offset, length);
+                    } catch (Exception e) {
+                        //e.printStackTrace();
+                    }
                 }
-            };
-            mSerialExecutor.execute(runnable);
+            });
         } catch (Exception e) {
+            //e.printStackTrace();
             // 不用管
         }
     }

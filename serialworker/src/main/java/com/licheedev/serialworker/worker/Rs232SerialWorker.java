@@ -1,8 +1,12 @@
 package com.licheedev.serialworker.worker;
 
 import android.support.annotation.NonNull;
+import com.licheedev.serialworker.core.Callback;
 import com.licheedev.serialworker.core.DataReceiver;
-import com.licheedev.serialworker.data.SendData;
+import com.licheedev.serialworker.core.RecvData;
+import com.licheedev.serialworker.core.SendData;
+import com.licheedev.serialworker.core.ValidData;
+import com.licheedev.serialworker.core.WaitRoom;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
@@ -10,111 +14,88 @@ import io.reactivex.exceptions.CompositeException;
 import io.reactivex.plugins.RxJavaPlugins;
 import io.reactivex.schedulers.Schedulers;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeoutException;
 
-/**
- * 用于全双工的rs232设备,发送命令和接收数据完全异步；
- * 适用于会主动上报心跳、状态的串口设备。
- *
- * @param <S> 发送的数据类型
- * @param <DR> 数据接收器
- */
-public abstract class Rs232SerialWorker<S extends SendData, DR extends DataReceiver>
-    extends BaseSerialWorker<DR> {
+public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
+    extends BaseSerialWorker implements SendReceive<S, R> {
 
-    private static final String TAG = "Rs232SerialWorker";
+    public static final String SERIAL_PORT_RECEIVES_DATA_TIMEOUT =
+        "SerialPort receives data timeout!";
+    private final List<WaitRoom<R>> mWaitRooms;
+    private long mTimeout = 2000L;
 
     public Rs232SerialWorker() {
+        mWaitRooms = new CopyOnWriteArrayList<>();
     }
 
-    /**
-     * 在当前线程发送数据
-     *
-     * @param sendData
-     */
-    private void sendOnCurrentThread(final S sendData) throws IOException {
-
-        byte[] bytes = sendData.toBytes();
-        // 更新发送时间
-        sendData.updateSendTime();
-        sendOnCurrentThread(bytes, 0, bytes.length);
-    }
-
-    /**
-     * 发送数据，同步，会阻塞当前线程；
-     * 可能会抛出异常
-     *
-     * @param sendData
-     */
-    public void send(final S sendData) throws ExecutionException, InterruptedException {
-
-        Callable callable = new Callable() {
-            @Override
-            public Object call() throws Exception {
-                sendOnCurrentThread(sendData);
-                return null; // 不用管返回值
-            }
-        };
-        // 指定在串口线程池发送
-        mSerialExecutor.submit(callable).get();
-    }
-
-    /**
-     * 发送数据，同步，会阻塞当前线程；
-     * 已try-catch
-     *
-     * @param sendData
-     */
-    public void sendNoThrow(final S sendData) {
-        try {
-            send(sendData);
-        } catch (Throwable e) {
-            //LogPlus.w(TAG, e);
-        }
-    }
-
-    /**
-     * 异步发送数据，不会阻塞当前线程
-     *
-     * @param sendData
-     */
-    public void asyncSend(final S sendData) {
-        try {
-            Runnable runnable = new Runnable() {
-                @Override
-                public void run() {
+    @Override
+    public void handleValidData(ValidData validData, DataReceiver receiver) {
+        ArrayList<byte[]> all = validData.getAll();
+        for (byte[] bytes : all) {
+            R r = (R) receiver.adaptReceive(bytes);
+            if (r != null) {
+                Iterator<WaitRoom<R>> iterator = mWaitRooms.iterator();
+                while (iterator.hasNext()) {
                     try {
-                        sendOnCurrentThread(sendData);
+                        WaitRoom<R> next = iterator.next();
+                        next.putResponse(r);
                     } catch (Exception e) {
-                        //e.printStackTrace();
+                        e.printStackTrace();
                     }
                 }
-            };
-            mSerialExecutor.execute(runnable);
-        } catch (Exception e) {
-            //LogPlus.w(TAG, e);
+                onReceiveData(r);
+            }
         }
+    }
+
+    @Override
+    public void notifyRunningReceive(boolean running) {
+        Iterator<WaitRoom<R>> iterator = mWaitRooms.iterator();
+        while (iterator.hasNext()) {
+            try {
+                iterator.next().notifyRunningReceive(running);
+            } catch (Exception e) {
+                //e.printStackTrace();
+            }
+        }
+    }
+
+    @Override
+    public void onReceiveData(byte[] receiveBuffer, int offset, int length) {
+        // ignore
+    }
+
+    @Override
+    public void setTimeout(long millis) {
+        mTimeout = millis;
+    }
+
+    @Override
+    public long getTimeout() {
+        return mTimeout;
     }
 
     /**
      * Rx发送数据源
      *
-     * @param sendData
      * @return
      */
-    @NonNull
-    private ObservableOnSubscribe<Boolean> getRxSendSource(final S sendData) {
-        return new ObservableOnSubscribe<Boolean>() {
-            @Override
-            public void subscribe(ObservableEmitter<Boolean> emitter) throws Exception {
+    private <T> Observable<T> getRxObservable(final Callable<T> callable) {
 
+        return Observable.create(new ObservableOnSubscribe<T>() {
+            @Override
+            public void subscribe(ObservableEmitter<T> emitter) throws Exception {
                 boolean terminated = false;
                 try {
-                    send(sendData);
+                    T t = callOnSerialThread(callable);
                     if (!emitter.isDisposed()) {
                         terminated = true;
-                        emitter.onNext(Boolean.TRUE);
+                        emitter.onNext(t);
                         emitter.onComplete();
                     }
                 } catch (Throwable t) {
@@ -129,59 +110,217 @@ public abstract class Rs232SerialWorker<S extends SendData, DR extends DataRecei
                     }
                 }
             }
-        };
-    }
-
-    /**
-     * 发送数据,需要处理异常;
-     * 没切线程，需自己进行线程调度
-     *
-     * @param sendData
-     * @return
-     */
-    public Observable<Boolean> rxSend(final S sendData) {
-
-        return Observable.create(getRxSendSource(sendData));
-    }
-
-    /**
-     * 发送数据,需要处理异常；
-     * 已切IO线程（{@link Schedulers#io()}）
-     *
-     * @param sendData
-     * @return
-     */
-    public Observable<Boolean> rxSendOnIo(final S sendData) {
-
-        return rxSend(sendData).subscribeOn(Schedulers.io());
-    }
-
-    /**
-     * 发送数据，内部已try-catch;
-     * 没切线程，需自己进行线程调度
-     *
-     * @param sendData
-     * @return
-     */
-    public Observable<Boolean> rxSendNoThrow(final S sendData) {
-
-        return Observable.fromCallable(new Callable<Boolean>() {
-            @Override
-            public Boolean call() throws Exception {
-                sendNoThrow(sendData);
-                return Boolean.TRUE;
-            }
         });
     }
 
     /**
-     * 发送数据，内部已try-catch;
-     * 已切IO线程（{@link Schedulers#io()}）
+     * 在当前线程发送数据
      *
      * @param sendData
-     * @return
      */
-    public Observable<Boolean> rxSendOnIoNoThrow(final S sendData) {
-        return rxSendNoThrow(sendData).subscribeOn(Schedulers.io());
+    protected R rawSend(final S sendData, long timeout) throws IOException {
+
+        SingleWaitRoom<S, R> waitRoom = null;
+        R response = null;
+        try {
+            if (timeout > 0) {
+                waitRoom = new SingleWaitRoom<>(this, sendData);
+                mWaitRooms.add(waitRoom);
+            }
+            byte[] bytes = sendData.toBytes();
+            // 更新发送时间
+            sendData.updateSendTime();
+            // 发送数据
+            rawSend(bytes, 0, bytes.length);
+            if (waitRoom != null) {
+                response = waitRoom.getResponse(timeout);
+            }
+        } finally {
+            if (waitRoom != null) {
+                mWaitRooms.remove(waitRoom);
+            }
+        }
+        return response;
+    }
+
+    /**
+     * 发送数据，没收到数据会抛出超时异常
+     *
+     * @param sendData
+     * @param timeout
+     * @return
+     * @throws TimeoutException
+     * @throws IOException
+     */
+    protected R rawSendNoNull(final S sendData, long timeout) throws TimeoutException, IOException {
+        R r = rawSend(sendData, timeout);
+        if (r == null) {
+            throw new TimeoutException(SERIAL_PORT_RECEIVES_DATA_TIMEOUT);
+        }
+        return r;
+    }
+
+    @NonNull
+    private Callable<R> rawSendCallable(final S sendData, final long timeout) {
+        return new Callable<R>() {
+            @Override
+            public R call() throws Exception {
+                return rawSend(sendData, timeout);
+            }
+        };
+    }
+
+    @NonNull
+    private Callable<R> rawSendNoNullCallable(final S sendData, final long timeout) {
+        return new Callable<R>() {
+            @Override
+            public R call() throws Exception {
+                return rawSendNoNull(sendData, timeout);
+            }
+        };
+    }
+
+    @Override
+    public RecvData syncSend(S sendData) throws Exception {
+        return callOnSerialThread(rawSendNoNullCallable(sendData, getTimeout()));
+    }
+
+    @Override
+    public void syncSendOnly(S sendData) throws Exception {
+        callOnSerialThread(rawSendCallable(sendData, 0));
+    }
+
+    @Override
+    public RecvData syncSendNoThrow(S sendData) {
+        try {
+            return syncSend(sendData);
+        } catch (Exception e) {
+            //e.printStackTrace();
+            return null;
+        }
+    }
+
+    @Override
+    public void syncSendOnlyNoThrow(S sendData) {
+        try {
+            syncSendOnly(sendData);
+        } catch (Exception e) {
+            //e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void send(final S sendData, final Callback<R> callback) {
+        try {
+            mSerialExecutor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        final R r = rawSendNoNull(sendData, getTimeout());
+                        if (callback != null) {
+                            mUiHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    callback.onSuccess(r);
+                                }
+                            });
+                        }
+                    } catch (final Exception e) {
+
+                        if (callback != null) {
+                            mUiHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    callback.onFailure(e);
+                                }
+                            });
+                        }
+                    }
+                }
+            });
+        } catch (final Exception e) {
+            if (callback != null) {
+                mUiHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        callback.onFailure(e);
+                    }
+                });
+            }
+        }
+    }
+
+    @Override
+    public <T extends R> void send(final S sendData, Class<T> cast, final Callback<T> callback) {
+        try {
+            mSerialExecutor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        final T t = (T) rawSendNoNull(sendData, getTimeout());
+                        if (callback != null) {
+                            mUiHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    callback.onSuccess(t);
+                                }
+                            });
+                        }
+                    } catch (final Exception e) {
+                        if (callback != null) {
+                            mUiHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    callback.onFailure(e);
+                                }
+                            });
+                        }
+                    }
+                }
+            });
+        } catch (final Exception e) {
+            if (callback != null) {
+                mUiHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        callback.onFailure(e);
+                    }
+                });
+            }
+        }
+    }
+
+    @Override
+    public void sendOnly(final S sendData) {
+        try {
+            mSerialExecutor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    syncSendOnlyNoThrow(sendData);
+                }
+            });
+        } catch (Exception e) {
+            //e.printStackTrace();
+        }
+    }
+
+    @Override
+    public Observable<R> rxSend(S sendData) {
+        return getRxObservable(rawSendNoNullCallable(sendData, getTimeout()));
+    }
+
+    @Override
+    public <T extends R> Observable<T> rxSend(S sendData, Class<T> cast) {
+        return rxSend(sendData).cast(cast);
+    }
+
+    @Override
+    public Observable<R> rxSendOnIo(S sendData) {
+        return rxSend(sendData).subscribeOn(Schedulers.io());
+    }
+
+    @Override
+    public <T extends R> Observable<T> rxSendOnIo(S sendData, Class<T> cast) {
+        return rxSendOnIo(sendData).cast(cast);
     }
 }
