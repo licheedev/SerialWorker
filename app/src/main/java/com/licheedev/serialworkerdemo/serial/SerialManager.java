@@ -4,6 +4,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.serialport.SerialPort;
+import com.licheedev.myutils.LogPlus;
 import com.licheedev.serialworker.core.Callback;
 import com.licheedev.serialworker.core.SerialWorker;
 import com.licheedev.serialworkerdemo.serial.command.RecvCommand;
@@ -97,6 +98,8 @@ public class SerialManager {
 
         // 刷卡器
         mCardSerialWorker = new CardReaderWorker(mDispatchThreadHandler);
+        // 开启打印日志
+        mCardSerialWorker.enableLog(true, true);
         mCardSerialWorker.setCardCallback(new CardReaderWorker.CardCallback() {
             @Override
             public void onReadCard(String cardId) {
@@ -119,23 +122,23 @@ public class SerialManager {
         mDoorSerialWorker.openSerial(DOOR_SERIAL, DOOR_BAUDRATE, new SerialWorker.OpenCallback() {
             @Override
             public void onSuccess(SerialPort serialPort) {
-                // TODO: 2019/11/5  
+                LogPlus.i("DoorSerialWorker open success");
             }
 
             @Override
             public void onFailure(Throwable tr) {
-                // TODO: 2019/11/5  
+                LogPlus.w("DoorSerialWorker open failure", tr);
             }
         });
         mCardSerialWorker.openSerial(CARD_SERIAL, CARD_BAUDRATE, new SerialWorker.OpenCallback() {
             @Override
             public void onSuccess(SerialPort serialPort) {
-                // TODO: 2019/11/5  
+                LogPlus.i("CardSerialWorker open success");
             }
 
             @Override
             public void onFailure(Throwable tr) {
-                // TODO: 2019/11/5  
+                LogPlus.w("CardSerialWorker open failure", tr);
             }
         });
     }

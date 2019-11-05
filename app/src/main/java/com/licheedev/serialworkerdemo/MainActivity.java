@@ -15,6 +15,9 @@ import com.licheedev.serialworkerdemo.serial.command.send.SendA8SetTemp;
 import io.reactivex.Observer;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -23,6 +26,7 @@ public class MainActivity extends AppCompatActivity {
     @butterknife.BindView(R.id.btn_set_temp)
     Button mBtnSetTemp;
     private Toast mToast;
+    private CommServiceDelegate mServiceDelegate;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,13 +34,24 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         ButterKnife.bind(this);
 
-        SerialManager.get().initDevice();
+        mServiceDelegate = new CommServiceDelegate(this);
+        mServiceDelegate.connectService(true, true);
+
+        EventBus.getDefault().register(this);
     }
 
     @Override
     protected void onDestroy() {
-        SerialManager.get().release();
+        EventBus.getDefault().unregister(this);
+        mServiceDelegate.unbindCommService();
+        CommServiceDelegate.killService();
         super.onDestroy();
+    }
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onMessageEvent(String carEvent) {
+        // 关闭服务
+        showToast("read card=" + carEvent);
     }
 
     @butterknife.OnClick({ R.id.btn_open_door, R.id.btn_set_temp })

@@ -35,6 +35,9 @@ public class CardReaderWorker extends BaseSerialWorker {
             return;
         } else if (mCardBuffer.length() == CARD_ID_LENGHT) {
             final String cardId = mCardBuffer.toString();
+            
+            mCardBuffer.delete(0, mCardBuffer.length());
+            
             if (mCardCallback != null) {
                 if (mRecvHandler != null) {
                     mRecvHandler.post(new Runnable() {
