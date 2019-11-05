@@ -6,7 +6,7 @@ import android.serialport.SerialPort;
 import android.support.annotation.Nullable;
 import com.licheedev.myutils.LogPlus;
 import com.licheedev.serialworker.core.DataReceiver;
-import com.licheedev.serialworker.core.InitSerialException;
+import com.licheedev.serialworker.core.OpenSerialException;
 import com.licheedev.serialworker.core.SerialWorker;
 import com.licheedev.serialworker.core.ValidData;
 import com.licheedev.serialworker.util.MyClock;
@@ -28,6 +28,8 @@ import java.util.concurrent.TimeoutException;
 public abstract class BaseSerialWorker implements SerialWorker {
 
     public static final String TAG = "SerialWorker";
+    public static final String ERROR_NO_SERIALPORT_OPENED = "SerialPort hasn't been opened!";
+    public static final String ERROR_OPEN_SERIAL_FAILED = "Open SerialPort failed!";
 
     protected InputStream mInputStream;
     protected OutputStream mOutputStream;
@@ -57,7 +59,7 @@ public abstract class BaseSerialWorker implements SerialWorker {
      * @throws ExecutionException
      */
     protected <T> T callOnSerialThread(Callable<T> callable)
-        throws InterruptedException, ExecutionException, InitSerialException, IOException,
+        throws InterruptedException, ExecutionException, OpenSerialException, IOException,
         TimeoutException {
 
         try {
@@ -66,8 +68,8 @@ public abstract class BaseSerialWorker implements SerialWorker {
             //e.printStackTrace();
             Throwable cause = e.getCause();
 
-            if (cause instanceof InitSerialException) {
-                throw ((InitSerialException) cause);
+            if (cause instanceof OpenSerialException) {
+                throw ((OpenSerialException) cause);
             } else if (cause instanceof IOException) {
                 throw ((IOException) cause);
             } else if (cause instanceof TimeoutException) {
@@ -86,10 +88,10 @@ public abstract class BaseSerialWorker implements SerialWorker {
      * @param devicePath
      * @param baudrate
      * @return
-     * @throws InitSerialException
+     * @throws OpenSerialException
      */
     private synchronized SerialPort doOpenSerial(String devicePath, int baudrate)
-        throws InitSerialException {
+        throws OpenSerialException {
 
         if (mSerialPort != null) {
             closeSerial();
@@ -107,7 +109,7 @@ public abstract class BaseSerialWorker implements SerialWorker {
             // 清理数据
             closeSerial();
             // 跑出异常
-            throw new InitSerialException(e);
+            throw new OpenSerialException(ERROR_OPEN_SERIAL_FAILED, e);
         }
     }
 
@@ -379,7 +381,8 @@ public abstract class BaseSerialWorker implements SerialWorker {
      * @param offset
      * @param len
      */
-    protected void rawSend(byte[] bytes, int offset, int len) throws IOException {
+    protected void rawSend(byte[] bytes, int offset, int len)
+        throws IOException, OpenSerialException {
 
         if (len < 1) {
             return;
@@ -387,6 +390,10 @@ public abstract class BaseSerialWorker implements SerialWorker {
 
         if (isLogSend()) {
             LogPlus.i(TAG, "Send=" + Util.bytes2HexStr(bytes, 0, len));
+        }
+
+        if (mOutputStream == null) {
+            throw new OpenSerialException(ERROR_NO_SERIALPORT_OPENED);
         }
 
         mOutputStream.write(bytes, offset, len);

@@ -3,6 +3,7 @@ package com.licheedev.serialworker.worker;
 import android.support.annotation.NonNull;
 import com.licheedev.serialworker.core.Callback;
 import com.licheedev.serialworker.core.DataReceiver;
+import com.licheedev.serialworker.core.OpenSerialException;
 import com.licheedev.serialworker.core.RecvData;
 import com.licheedev.serialworker.core.SendData;
 import com.licheedev.serialworker.core.ValidData;
@@ -118,7 +119,7 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
      *
      * @param sendData
      */
-    protected R rawSend(final S sendData, long timeout) throws IOException {
+    protected R rawSend(final S sendData, long timeout) throws IOException, OpenSerialException {
 
         SingleWaitRoom<S, R> waitRoom = null;
         R response = null;
@@ -152,7 +153,8 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
      * @throws TimeoutException
      * @throws IOException
      */
-    protected R rawSendNoNull(final S sendData, long timeout) throws TimeoutException, IOException {
+    protected R rawSendNoNull(final S sendData, long timeout)
+        throws TimeoutException, IOException, OpenSerialException {
         R r = rawSend(sendData, timeout);
         if (r == null) {
             throw new TimeoutException(SERIAL_PORT_RECEIVES_DATA_TIMEOUT);

@@ -6,6 +6,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 import butterknife.ButterKnife;
+import com.licheedev.myutils.LogPlus;
 import com.licheedev.serialworker.core.Callback;
 import com.licheedev.serialworkerdemo.serial.SerialManager;
 import com.licheedev.serialworkerdemo.serial.command.recv.RecvA4OpenDoor;
@@ -68,6 +69,7 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onFailure(Throwable tr) {
+                        LogPlus.w("onError", tr);
                         showToast(tr.getMessage());
                     }
                 });
@@ -92,6 +94,7 @@ public class MainActivity extends AppCompatActivity {
 
                         @Override
                         public void onError(Throwable e) {
+                            LogPlus.w("onError", e);
                             showToast(e.getMessage());
                         }
 

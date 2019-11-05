@@ -26,10 +26,10 @@ public class SerialManager {
 
     private static final String TAG = "SerialManager";
 
-    private static String DOOR_SERIAL = "/dev/ttyS0";
+    private static String DOOR_SERIAL = "/dev/ttyS1";
     private static int DOOR_BAUDRATE = 9600;
 
-    private static String CARD_SERIAL = "/dev/ttyS1";
+    private static String CARD_SERIAL = "/dev/ttyS0";
     private static int CARD_BAUDRATE = 115200;
 
     private static volatile SerialManager sManager = null;
