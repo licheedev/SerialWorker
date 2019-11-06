@@ -1,5 +1,7 @@
 package com.licheedev.serialworker.worker;
 
+import android.support.annotation.Nullable;
+import com.licheedev.serialworker.core.Callback;
 import com.licheedev.serialworker.core.RecvData;
 import com.licheedev.serialworker.core.SendData;
 
@@ -11,7 +13,7 @@ import com.licheedev.serialworker.core.SendData;
  * @param <R> 接收的数据类型
  */
 public abstract class Rs485SerialWorker<S extends SendData, R extends RecvData>
-    extends Rs232SerialWorker<S, RecvData> {
+    extends Rs232SerialWorker<S, R> {
 
     public static final String NO_SUPPORT_RS485 = "Don't call this method on RS485";
 
@@ -28,14 +30,8 @@ public abstract class Rs485SerialWorker<S extends SendData, R extends RecvData>
     }
 
     @Override
-    public void sendOnly(S sendData) {
+    public void sendOnly(S sendData, @Nullable Callback<Void> callback) {
         throw new RuntimeException(NO_SUPPORT_RS485);
-        //super.sendOnly(sendData);
-    }
-
-    @Override
-    public void asyncSend(byte[] bytes, int offset, int length) {
-        throw new RuntimeException(NO_SUPPORT_RS485);
-        //super.asyncSend(bytes, offset, length);
+        //super.sendOnly(sendData, callback);
     }
 }

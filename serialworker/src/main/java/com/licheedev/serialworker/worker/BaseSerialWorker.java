@@ -5,6 +5,7 @@ import android.os.Looper;
 import android.serialport.SerialPort;
 import android.support.annotation.Nullable;
 import com.licheedev.myutils.LogPlus;
+import com.licheedev.serialworker.core.Callback;
 import com.licheedev.serialworker.core.DataReceiver;
 import com.licheedev.serialworker.core.OpenSerialException;
 import com.licheedev.serialworker.core.SerialWorker;
@@ -48,6 +49,41 @@ public abstract class BaseSerialWorker implements SerialWorker {
         mSerialExecutor = Executors.newSingleThreadExecutor();
         mUiHandler = new Handler(Looper.getMainLooper());
     }
+
+    /**
+     * 告知接收数据线程正在运行。此方法会不停的被调用。
+     *
+     * @param running
+     */
+    protected void notifyRunningReceive(boolean running) {
+        // TODO 默认空实现
+    }
+
+    /**
+     * 收到数据(在串口的读线程中运行，尽量不要执行耗时操作)
+     *
+     * @param receiveBuffer 接收数据缓存
+     * @param offset 接收收据在缓存中的偏移
+     * @param length 接收到的数据长度
+     */
+    protected abstract void onReceiveData(byte[] receiveBuffer, int offset, int length);
+
+    /**
+     * 新建数据接收器
+     *
+     * @return 尽量new出来，不要复用成员变量;如果不需要处理收到的数据，可以返回null
+     */
+    @Nullable
+    protected abstract DataReceiver newReceiver();
+
+    /**
+     * 收到有效数据(在串口的读线程中运行，尽量不要执行耗时操作)；
+     * 只有{@link #newReceiver()}返回非null对象，才会进此方法
+     *
+     * @param validData 收到的有效数据
+     * @param receiver 数据接收器，参考{@link #newReceiver()}
+     */
+    protected abstract void handleValidData(ValidData validData, DataReceiver receiver);
 
     /**
      * 通用的同步方法
@@ -155,8 +191,6 @@ public abstract class BaseSerialWorker implements SerialWorker {
 
             while (mRunning) {
                 try {
-                    // 清空有效数据缓存
-                    validData.clear();
                     if (mInputStream.available() > 0) {
                         len = mInputStream.read(mRecvBuffer);
                         if (len > 0) {
@@ -168,12 +202,13 @@ public abstract class BaseSerialWorker implements SerialWorker {
                             onReceiveData(mRecvBuffer, 0, len);
 
                             if (receiver != null) {
+                                // 清空有效数据缓存
+                                validData.clear();
                                 // 处理接收到的数据
                                 receiver.onReceive(validData, mRecvBuffer, 0, len);
                                 if (validData.size() > 0) {
                                     // 处理有效的数据
                                     handleValidData(validData, receiver);
-                                    validData.clear();
                                 }
                             }
                         }
@@ -346,18 +381,6 @@ public abstract class BaseSerialWorker implements SerialWorker {
         // TODO: 如果子类有其他东西要释放，就在这里处理
     }
 
-    //@Nullable
-    //@Override
-    //public DataReceiver newReceiver() {
-    //    // TODO 返回数据接收器，可以返回null 
-    //    //return null;
-    //}
-
-    //@Override
-    //public void handleValidData(byte[] allPack, Object... other) {
-    //    TODO 处理收到的有效数据
-    //}
-
     @Override
     public void enableLog(boolean logSend, boolean logRecv) {
         mLogSend = logSend;
@@ -400,17 +423,70 @@ public abstract class BaseSerialWorker implements SerialWorker {
         mOutputStream.flush();
     }
 
-    @Override
-    public void syncSend(final byte[] bytes, final int offset, final int length) {
+    /**
+     * 在当前线程发送数据
+     *
+     * @param bytes
+     */
+    protected void rawSend(byte[] bytes) throws IOException, OpenSerialException {
+        rawSend(bytes, 0, bytes.length);
+    }
 
+    protected void asyncCallOnSerialThread(final Callable<?> callable, final Callback callback) {
         try {
-            callOnSerialThread(new Callable<Object>() {
+            mSerialExecutor.execute(new Runnable() {
                 @Override
-                public Object call() throws Exception {
-                    rawSend(bytes, offset, length);
-                    return null;
+                public void run() {
+                    try {
+                        final Object o = callable.call();
+                        if (callback != null) {
+                            mUiHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    callback.onSuccess(o);
+                                }
+                            });
+                        }
+                    } catch (final Exception e) {
+                        if (callback != null) {
+                            mUiHandler.post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    callback.onFailure(e);
+                                }
+                            });
+                        }
+                    }
                 }
             });
+        } catch (final Exception e) {
+            if (callback != null) {
+                mUiHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        callback.onFailure(e);
+                    }
+                });
+            }
+        }
+    }
+
+    @Override
+    public void syncSendBytes(final byte[] bytes, final int offset, final int length)
+        throws Exception {
+        callOnSerialThread(new Callable<Object>() {
+            @Override
+            public Object call() throws Exception {
+                rawSend(bytes, offset, length);
+                return null;
+            }
+        });
+    }
+
+    @Override
+    public void syncSendBytesNoThrow(byte[] bytes, int offset, int length) {
+        try {
+            syncSendBytes(bytes, offset, length);
         } catch (Exception e) {
             //e.printStackTrace();
             // 不用管
@@ -418,22 +494,29 @@ public abstract class BaseSerialWorker implements SerialWorker {
     }
 
     @Override
-    public void asyncSend(final byte[] bytes, final int offset, final int length) {
+    public void syncSendBytes(byte[] bytes) throws Exception {
+        syncSendBytes(bytes, 0, bytes.length);
+    }
 
-        try {
-            mSerialExecutor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        rawSend(bytes, offset, length);
-                    } catch (Exception e) {
-                        //e.printStackTrace();
-                    }
-                }
-            });
-        } catch (Exception e) {
-            //e.printStackTrace();
-            // 不用管
-        }
+    @Override
+    public void syncSendBytesNoThrow(byte[] bytes) {
+        syncSendBytesNoThrow(bytes, 0, bytes.length);
+    }
+
+    @Override
+    public void sendBytes(final byte[] bytes, final int offset, final int length,
+        @Nullable Callback<Void> callback) {
+        asyncCallOnSerialThread(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                rawSend(bytes, offset, length);
+                return null;
+            }
+        }, callback);
+    }
+
+    @Override
+    public void sendBytes(byte[] bytes, @Nullable Callback<Void> callback) {
+        sendBytes(bytes, 0, bytes.length, callback);
     }
 }

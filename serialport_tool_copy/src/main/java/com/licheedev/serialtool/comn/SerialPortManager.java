@@ -7,6 +7,7 @@ import com.licheedev.serialtool.comn.message.LogManager;
 import com.licheedev.serialtool.comn.message.RecvMessage;
 import com.licheedev.serialtool.comn.message.SendMessage;
 import com.licheedev.serialtool.util.ByteUtil;
+import com.licheedev.serialworker.core.Callback;
 import com.licheedev.serialworker.core.DataReceiver;
 import com.licheedev.serialworker.core.ValidData;
 import com.licheedev.serialworker.worker.BaseSerialWorker;
@@ -36,11 +37,6 @@ public class SerialPortManager {
     }
 
     private class MySerialWorker extends BaseSerialWorker {
-
-        @Override
-        public void notifyRunningReceive(boolean running) {
-            // ignore
-        }
 
         @Override
         public void onReceiveData(byte[] receiveBuffer, int offset, int length) {
@@ -102,6 +98,16 @@ public class SerialPortManager {
         byte[] bytes = ByteUtil.hexStr2bytes(command);
 
         LogManager.instance().post(new SendMessage(command));
-        mSerialWorker.asyncSend(bytes, 0, bytes.length);
+        mSerialWorker.sendBytes(bytes, new Callback<Void>() {
+            @Override
+            public void onSuccess(Void aVoid) {
+                LogPlus.i("send success!"+Thread.currentThread());
+            }
+
+            @Override
+            public void onFailure(Throwable tr) {
+                LogPlus.w("send failure", tr);
+            }
+        });
     }
 }

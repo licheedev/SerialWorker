@@ -1,6 +1,7 @@
 package com.licheedev.serialworker.worker;
 
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import com.licheedev.serialworker.core.Callback;
 import com.licheedev.serialworker.core.DataReceiver;
 import com.licheedev.serialworker.core.OpenSerialException;
@@ -43,10 +44,9 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
                 Iterator<WaitRoom<R>> iterator = mWaitRooms.iterator();
                 while (iterator.hasNext()) {
                     try {
-                        WaitRoom<R> next = iterator.next();
-                        next.putResponse(r);
+                        iterator.next().putResponse(r);
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        //e.printStackTrace();
                     }
                 }
                 onReceiveData(r);
@@ -188,11 +188,6 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
     }
 
     @Override
-    public void syncSendOnly(S sendData) throws Exception {
-        callOnSerialThread(rawSendCallable(sendData, 0));
-    }
-
-    @Override
     public RecvData syncSendNoThrow(S sendData) {
         try {
             return syncSend(sendData);
@@ -200,6 +195,11 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
             //e.printStackTrace();
             return null;
         }
+    }
+
+    @Override
+    public void syncSendOnly(S sendData) throws Exception {
+        callOnSerialThread(rawSendCallable(sendData, 0));
     }
 
     @Override
@@ -211,99 +211,40 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
         }
     }
 
-    @Override
-    public void send(final S sendData, final Callback<R> callback) {
-        try {
-            mSerialExecutor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        final R r = rawSendNoNull(sendData, getTimeout());
-                        if (callback != null) {
-                            mUiHandler.post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    callback.onSuccess(r);
-                                }
-                            });
-                        }
-                    } catch (final Exception e) {
 
-                        if (callback != null) {
-                            mUiHandler.post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    callback.onFailure(e);
-                                }
-                            });
-                        }
-                    }
-                }
-            });
-        } catch (final Exception e) {
-            if (callback != null) {
-                mUiHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        callback.onFailure(e);
-                    }
-                });
+
+    @Override
+    public void send(final S sendData, @Nullable final Callback<R> callback) {
+        asyncCallOnSerialThread(new Callable<R>() {
+            @Override
+            public R call() throws Exception {
+                return rawSendNoNull(sendData, getTimeout());
             }
-        }
+        }, callback);
     }
 
     @Override
-    public <T extends R> void send(final S sendData, Class<T> cast, final Callback<T> callback) {
-        try {
-            mSerialExecutor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        final T t = (T) rawSendNoNull(sendData, getTimeout());
-                        if (callback != null) {
-                            mUiHandler.post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    callback.onSuccess(t);
-                                }
-                            });
-                        }
-                    } catch (final Exception e) {
-                        if (callback != null) {
-                            mUiHandler.post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    callback.onFailure(e);
-                                }
-                            });
-                        }
-                    }
-                }
-            });
-        } catch (final Exception e) {
-            if (callback != null) {
-                mUiHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        callback.onFailure(e);
-                    }
-                });
+    public <T extends R> void send(final S sendData, Class<T> cast,
+        @Nullable final Callback<T> callback) {
+
+        asyncCallOnSerialThread(new Callable<T>() {
+            @Override
+            public T call() throws Exception {
+                return (T) rawSendNoNull(sendData, getTimeout());
             }
-        }
+        }, callback);
     }
 
     @Override
-    public void sendOnly(final S sendData) {
-        try {
-            mSerialExecutor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    syncSendOnlyNoThrow(sendData);
-                }
-            });
-        } catch (Exception e) {
-            //e.printStackTrace();
-        }
+    public void sendOnly(final S sendData, @Nullable final Callback<Void> callback) {
+
+        asyncCallOnSerialThread(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                rawSend(sendData, 0);
+                return null;
+            }
+        }, callback);
     }
 
     @Override
