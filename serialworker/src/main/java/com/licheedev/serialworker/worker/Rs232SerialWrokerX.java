@@ -41,6 +41,7 @@ public abstract class Rs232SerialWrokerX<S extends SendData, R extends RecvData>
         TimeoutException {
 
         SingleWaitRoom<S, R> waitRoom = new SingleWaitRoom<>(this, sendData);
+        mWaitRooms.add(waitRoom);
         R response;
         try {
             callOnSerialThread(new Callable<Object>() {

@@ -152,7 +152,7 @@ public class SerialManager {
     }
 
     public Observable<RecvSetReadTemp> rxsetTemp(SendA8SetTemp command) {
-        return mDoorSerialWorker.rxSendOnIo(command, RecvSetReadTemp.class);
+        return mDoorSerialWorker.rxSendXOnIo(command, RecvSetReadTemp.class);
     }
 
     /**
