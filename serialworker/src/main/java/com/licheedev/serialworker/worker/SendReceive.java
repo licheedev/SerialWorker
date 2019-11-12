@@ -54,7 +54,8 @@ public interface SendReceive<S extends SendData, R extends RecvData> {
     void setTimeout(long millis);
 
     /**
-     * 同步发送并接收数据，会阻塞调用的线程，需要处理异常
+     * 同步发送并接收数据，会阻塞调用的线程，需要处理异常；
+     * 收发数据在同一线程中执行。
      *
      * @param sendData 发送的数据
      * @return
@@ -63,7 +64,8 @@ public interface SendReceive<S extends SendData, R extends RecvData> {
     RecvData syncSend(S sendData) throws Exception;
 
     /**
-     * 同步发送并接收数据，会阻塞调用的线程，不会抛出异常
+     * 同步发送并接收数据，会阻塞调用的线程，不会抛出异常；
+     * 收发数据在同一线程中执行。
      *
      * @param sendData
      * @return
@@ -85,7 +87,8 @@ public interface SendReceive<S extends SendData, R extends RecvData> {
     void syncSendOnlyNoThrow(S sendData);
 
     /**
-     * 异步发送数据并进行类型转换
+     * 异步发送并接收数据；
+     * 收发数据在同一线程中执行。
      *
      * @param sendData 发送的数据
      * @param callback 回调
@@ -93,7 +96,8 @@ public interface SendReceive<S extends SendData, R extends RecvData> {
     void send(S sendData, @Nullable Callback<R> callback);
 
     /**
-     * 异步发送数据并进行类型转换
+     * 异步发送数据和接收数据，并进行类型转换；
+     * 收发数据在同一线程中执行。
      *
      * @param sendData 发送的数据
      * @param cast 接收数据的准确类型
@@ -112,6 +116,7 @@ public interface SendReceive<S extends SendData, R extends RecvData> {
 
     /**
      * 收发数据，需要处理异常；
+     * 收发数据在同一线程中执行；
      * 没切线程，需自己进行线程调度
      *
      * @param sendData
@@ -121,7 +126,8 @@ public interface SendReceive<S extends SendData, R extends RecvData> {
     Observable<R> rxSend(S sendData);
 
     /**
-     * 收发数据，并对接收的数据进行类型转换，需要处理异常；
+     * 收发数据，需要处理异常；
+     * 收发数据在同一线程中执行；
      * 没切线程，需自己进行线程调度
      *
      * @param sendData 发送的数据
@@ -133,6 +139,7 @@ public interface SendReceive<S extends SendData, R extends RecvData> {
 
     /**
      * 收发数据，需要处理异常；
+     * 收发数据在同一线程中执行；
      * 已切IO线程（{@link Schedulers#io()}）
      *
      * @param sendData 发送的数据
@@ -142,6 +149,7 @@ public interface SendReceive<S extends SendData, R extends RecvData> {
 
     /**
      * 收发数据，并对接收的数据进行类型转换，需要处理异常；
+     * 收发数据在同一线程中执行
      * 已切IO线程（{@link Schedulers#io()}）
      *
      * @param sendData 发送的数据

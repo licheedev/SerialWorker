@@ -10,10 +10,6 @@ import com.licheedev.serialworker.core.SendData;
 import com.licheedev.serialworker.core.ValidData;
 import com.licheedev.serialworker.core.WaitRoom;
 import io.reactivex.Observable;
-import io.reactivex.ObservableEmitter;
-import io.reactivex.ObservableOnSubscribe;
-import io.reactivex.exceptions.CompositeException;
-import io.reactivex.plugins.RxJavaPlugins;
 import io.reactivex.schedulers.Schedulers;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -23,12 +19,20 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeoutException;
 
+/**
+ * 用于全双工的rs232设备。此类的实现是类rs485的，即请求与应答在同一个单一线程中执行。
+ * 如果需要请求与应答在不同线程中执行，可以使用{@link Rs232SerialWrokerX}，并使用其中的带“X”方法。
+ *
+ * @param <S>
+ * @param <R>
+ * @see Rs232SerialWrokerX
+ */
 public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
     extends BaseSerialWorker implements SendReceive<S, R> {
 
     public static final String SERIAL_PORT_RECEIVES_DATA_TIMEOUT =
         "SerialPort receives data timeout!";
-    private final List<WaitRoom<R>> mWaitRooms;
+    protected final List<WaitRoom<R>> mWaitRooms;
     private long mTimeout = 2000L;
 
     public Rs232SerialWorker() {
@@ -82,42 +86,10 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
     }
 
     /**
-     * Rx发送数据源
+     * 在当前线程发送数据，并等待接收数据
      *
-     * @return
-     */
-    private <T> Observable<T> getRxObservable(final Callable<T> callable) {
-
-        return Observable.create(new ObservableOnSubscribe<T>() {
-            @Override
-            public void subscribe(ObservableEmitter<T> emitter) throws Exception {
-                boolean terminated = false;
-                try {
-                    T t = callOnSerialThread(callable);
-                    if (!emitter.isDisposed()) {
-                        terminated = true;
-                        emitter.onNext(t);
-                        emitter.onComplete();
-                    }
-                } catch (Throwable t) {
-                    if (terminated) {
-                        RxJavaPlugins.onError(t);
-                    } else if (!emitter.isDisposed()) {
-                        try {
-                            emitter.onError(t);
-                        } catch (Throwable inner) {
-                            RxJavaPlugins.onError(new CompositeException(t, inner));
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    /**
-     * 在当前线程发送数据
-     *
-     * @param sendData
+     * @param sendData 发送的数据
+     * @param timeout 接收数据超时，0表示不会等待接收数据
      */
     protected R rawSend(final S sendData, long timeout) throws IOException, OpenSerialException {
 
@@ -211,16 +183,9 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
         }
     }
 
-
-
     @Override
     public void send(final S sendData, @Nullable final Callback<R> callback) {
-        asyncCallOnSerialThread(new Callable<R>() {
-            @Override
-            public R call() throws Exception {
-                return rawSendNoNull(sendData, getTimeout());
-            }
-        }, callback);
+        asyncCallOnSerialThread(rawSendNoNullCallable(sendData, getTimeout()), callback);
     }
 
     @Override
@@ -248,8 +213,14 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
     }
 
     @Override
-    public Observable<R> rxSend(S sendData) {
-        return getRxObservable(rawSendNoNullCallable(sendData, getTimeout()));
+    public Observable<R> rxSend(final S sendData) {
+
+        return getRxObservable(new Callable<R>() {
+            @Override
+            public R call() throws Exception {
+                return callOnSerialThread(rawSendNoNullCallable(sendData, getTimeout()));
+            }
+        });
     }
 
     @Override

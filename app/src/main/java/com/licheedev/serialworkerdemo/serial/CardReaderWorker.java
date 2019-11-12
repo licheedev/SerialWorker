@@ -22,11 +22,6 @@ public class CardReaderWorker extends BaseSerialWorker {
     }
 
     @Override
-    public void notifyRunningReceive(boolean running) {
-        // ignore
-    }
-
-    @Override
     public void onReceiveData(byte[] receiveBuffer, int offset, int length) {
 
         String hexStr = ByteUtil.bytes2HexStr(receiveBuffer, offset, length);
@@ -35,9 +30,9 @@ public class CardReaderWorker extends BaseSerialWorker {
             return;
         } else if (mCardBuffer.length() == CARD_ID_LENGHT) {
             final String cardId = mCardBuffer.toString();
-            
+
             mCardBuffer.delete(0, mCardBuffer.length());
-            
+
             if (mCardCallback != null) {
                 if (mRecvHandler != null) {
                     mRecvHandler.post(new Runnable() {
@@ -57,12 +52,12 @@ public class CardReaderWorker extends BaseSerialWorker {
 
     @Override
     public DataReceiver<RecvCommand> newReceiver() {
-        return new DoorDataReceiver();
+        return null;
     }
 
     @Override
     public void handleValidData(ValidData validData, DataReceiver receiver) {
-        // never call，ignore
+        // newReceiver() 返回null, 此方法不会被调用
     }
 
     private CardCallback mCardCallback;

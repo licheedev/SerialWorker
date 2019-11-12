@@ -12,6 +12,11 @@ import com.licheedev.serialworker.core.SerialWorker;
 import com.licheedev.serialworker.core.ValidData;
 import com.licheedev.serialworker.util.MyClock;
 import com.licheedev.serialworker.util.Util;
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.exceptions.CompositeException;
+import io.reactivex.plugins.RxJavaPlugins;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -84,39 +89,6 @@ public abstract class BaseSerialWorker implements SerialWorker {
      * @param receiver 数据接收器，参考{@link #newReceiver()}
      */
     protected abstract void handleValidData(ValidData validData, DataReceiver receiver);
-
-    /**
-     * 通用的同步方法
-     *
-     * @param callable
-     * @param <T>
-     * @return
-     * @throws InterruptedException
-     * @throws ExecutionException
-     */
-    protected <T> T callOnSerialThread(Callable<T> callable)
-        throws InterruptedException, ExecutionException, OpenSerialException, IOException,
-        TimeoutException {
-
-        try {
-            return mSerialExecutor.submit(callable).get();
-        } catch (ExecutionException e) {
-            //e.printStackTrace();
-            Throwable cause = e.getCause();
-
-            if (cause instanceof OpenSerialException) {
-                throw ((OpenSerialException) cause);
-            } else if (cause instanceof IOException) {
-                throw ((IOException) cause);
-            } else if (cause instanceof TimeoutException) {
-                throw ((TimeoutException) cause);
-            } else if (cause instanceof RuntimeException) {
-                throw ((RuntimeException) cause);
-            } else {
-                throw e;
-            }
-        }
-    }
 
     /**
      * 打开串口，并抛出异常
@@ -398,43 +370,43 @@ public abstract class BaseSerialWorker implements SerialWorker {
     }
 
     /**
-     * 在当前线程发送数据
+     * 通用的同步方法
      *
-     * @param bytes
-     * @param offset
-     * @param len
+     * @param executor 线程池
+     * @param callable
+     * @param <T>
+     * @return
+     * @throws InterruptedException
+     * @throws ExecutionException
      */
-    protected void rawSend(byte[] bytes, int offset, int len)
-        throws IOException, OpenSerialException {
+    protected <T> T callOnExecutor(ExecutorService executor, Callable<T> callable)
+        throws InterruptedException, ExecutionException, OpenSerialException, IOException,
+        TimeoutException {
 
-        if (len < 1) {
-            return;
-        }
-
-        if (isLogSend()) {
-            LogPlus.i(TAG, "Send=" + Util.bytes2HexStr(bytes, 0, len));
-        }
-
-        if (mOutputStream == null) {
-            throw new OpenSerialException(ERROR_NO_SERIALPORT_OPENED);
-        }
-
-        mOutputStream.write(bytes, offset, len);
-        mOutputStream.flush();
-    }
-
-    /**
-     * 在当前线程发送数据
-     *
-     * @param bytes
-     */
-    protected void rawSend(byte[] bytes) throws IOException, OpenSerialException {
-        rawSend(bytes, 0, bytes.length);
-    }
-
-    protected void asyncCallOnSerialThread(final Callable<?> callable, final Callback callback) {
         try {
-            mSerialExecutor.execute(new Runnable() {
+            return executor.submit(callable).get();
+        } catch (ExecutionException e) {
+            //e.printStackTrace();
+            Throwable cause = e.getCause();
+
+            if (cause instanceof OpenSerialException) {
+                throw ((OpenSerialException) cause);
+            } else if (cause instanceof IOException) {
+                throw ((IOException) cause);
+            } else if (cause instanceof TimeoutException) {
+                throw ((TimeoutException) cause);
+            } else if (cause instanceof RuntimeException) {
+                throw ((RuntimeException) cause);
+            } else {
+                throw e;
+            }
+        }
+    }
+
+    protected void asyncCallOnExecutor(ExecutorService executor, final Callable<?> callable,
+        final Callback callback) {
+        try {
+            executor.execute(new Runnable() {
                 @Override
                 public void run() {
                     try {
@@ -469,6 +441,94 @@ public abstract class BaseSerialWorker implements SerialWorker {
                 });
             }
         }
+    }
+
+    /**
+     * 通用的同步方法
+     *
+     * @param callable
+     * @param <T>
+     * @return
+     * @throws InterruptedException
+     * @throws ExecutionException
+     */
+    protected <T> T callOnSerialThread(Callable<T> callable)
+        throws InterruptedException, ExecutionException, OpenSerialException, IOException,
+        TimeoutException {
+
+        return callOnExecutor(mSerialExecutor, callable);
+    }
+
+    protected void asyncCallOnSerialThread(final Callable<?> callable, final Callback callback) {
+        asyncCallOnExecutor(mSerialExecutor, callable, callback);
+    }
+
+    /**
+     * Rx发送数据源
+     *
+     * @return
+     */
+    protected <T> Observable<T> getRxObservable(final Callable<T> callable) {
+
+        return Observable.create(new ObservableOnSubscribe<T>() {
+            @Override
+            public void subscribe(ObservableEmitter<T> emitter) throws Exception {
+                boolean terminated = false;
+                try {
+                    T t = callable.call();
+                    if (!emitter.isDisposed()) {
+                        terminated = true;
+                        emitter.onNext(t);
+                        emitter.onComplete();
+                    }
+                } catch (Throwable t) {
+                    if (terminated) {
+                        RxJavaPlugins.onError(t);
+                    } else if (!emitter.isDisposed()) {
+                        try {
+                            emitter.onError(t);
+                        } catch (Throwable inner) {
+                            RxJavaPlugins.onError(new CompositeException(t, inner));
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * 在当前线程发送数据
+     *
+     * @param bytes
+     * @param offset
+     * @param len
+     */
+    protected void rawSend(byte[] bytes, int offset, int len)
+        throws IOException, OpenSerialException {
+
+        if (len < 1) {
+            return;
+        }
+
+        if (isLogSend()) {
+            LogPlus.i(TAG, "Send=" + Util.bytes2HexStr(bytes, 0, len));
+        }
+
+        if (mOutputStream == null) {
+            throw new OpenSerialException(ERROR_NO_SERIALPORT_OPENED);
+        }
+
+        mOutputStream.write(bytes, offset, len);
+        mOutputStream.flush();
+    }
+
+    /**
+     * 在当前线程发送数据
+     *
+     * @param bytes
+     */
+    protected void rawSend(byte[] bytes) throws IOException, OpenSerialException {
+        rawSend(bytes, 0, bytes.length);
     }
 
     @Override
