@@ -1,5 +1,7 @@
 # SerialWorker
 
+[![](https://jitpack.io/v/licheedev/SerialWorker.svg)](https://jitpack.io/#licheedev/SerialWorker)
+
 ```groovy
 
 allprojects {
