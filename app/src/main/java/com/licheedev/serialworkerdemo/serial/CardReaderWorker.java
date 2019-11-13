@@ -5,7 +5,6 @@ import android.support.annotation.Nullable;
 import com.licheedev.serialworker.core.DataReceiver;
 import com.licheedev.serialworker.core.ValidData;
 import com.licheedev.serialworker.worker.BaseSerialWorker;
-import com.licheedev.serialworkerdemo.serial.command.RecvCommand;
 
 /**
  * 简单的刷卡器示例
@@ -50,8 +49,10 @@ public class CardReaderWorker extends BaseSerialWorker {
         }
     }
 
+    @Nullable
     @Override
-    public DataReceiver<RecvCommand> newReceiver() {
+    protected DataReceiver newReceiver() {
+        // 上面直接处理收到的原始数据了，不需要额外的接收器
         return null;
     }
 
