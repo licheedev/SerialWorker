@@ -27,7 +27,7 @@ allprojects {
 [Rs232SerialWorker](https://github.com/licheedev/SerialWorker/blob/master/serialworker/src/main/java/com/licheedev/serialworker/worker/Rs232SerialWorker.java)
 > 参考 [售货柜控制板 DoorSerialWorker.java](https://github.com/licheedev/SerialWorker/blob/master/app/src/main/java/com/licheedev/serialworkerdemo/serial/DoorSerialWorker.java)
 
-[Rs232SerialWorkerX](https://github.com/licheedev/SerialWorker/blob/master/serialworker/src/main/java/com/licheedev/serialworker/worker/Rs232SerialWrokerX.java)
+[Rs232SerialWorkerX](https://github.com/licheedev/SerialWorker/blob/master/serialworker/src/main/java/com/licheedev/serialworker/worker/Rs232SerialWorkerX.java)
 
 [Rs485SerialWorker](https://github.com/licheedev/SerialWorker/blob/master/serialworker/src/main/java/com/licheedev/serialworker/worker/Rs485SerialWorker.java)
 
