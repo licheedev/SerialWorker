@@ -17,17 +17,17 @@ import java.util.concurrent.TimeoutException;
 /**
  * {@link Rs232SerialWorker}的增强版。
  * {@link Rs232SerialWorker}中，请求和应答，是在同一线程中处理的。必须等待前一条命令请求和应答完成，才能处理下一条命令。
- * {@link Rs232SerialWrokerX}中的带“X”的方法，发送数据会在单一线程中处理（发送是串行的），接收数据则在不同的线程中处理。
+ * {@link Rs232SerialWorkerX}中的带“X”的方法，发送数据会在单一线程中处理（发送是串行的），接收数据则在不同的线程中处理。
  *
  * @param <S>
  * @param <R>
  */
-public abstract class Rs232SerialWrokerX<S extends SendData, R extends RecvData>
+public abstract class Rs232SerialWorkerX<S extends SendData, R extends RecvData>
     extends Rs232SerialWorker<S, R> implements SendReceiveX<S, R> {
 
     private final ExecutorService mReceiveExecutor;
 
-    public Rs232SerialWrokerX() {
+    public Rs232SerialWorkerX() {
         mReceiveExecutor = Executors.newCachedThreadPool();
     }
 

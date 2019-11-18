@@ -21,11 +21,11 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * 用于全双工的rs232设备。此类的实现是类rs485的，即请求与应答在同一个单一线程中执行。
- * 如果需要请求与应答在不同线程中执行，可以使用{@link Rs232SerialWrokerX}，并使用其中的带“X”方法。
+ * 如果需要请求与应答在不同线程中执行，可以使用{@link Rs232SerialWorkerX}，并使用其中的带“X”方法。
  *
  * @param <S>
  * @param <R>
- * @see Rs232SerialWrokerX
+ * @see Rs232SerialWorkerX
  */
 public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
     extends BaseSerialWorker implements SendReceive<S, R> {
