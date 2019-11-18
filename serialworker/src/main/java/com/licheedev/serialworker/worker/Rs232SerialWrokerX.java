@@ -88,12 +88,12 @@ public abstract class Rs232SerialWrokerX<S extends SendData, R extends RecvData>
     }
 
     @Override
-    public RecvData sendX(S sendData) throws Exception {
+    public R sendX(S sendData) throws Exception {
         return callOnReceiveThread(rawSendXCallable(sendData));
     }
 
     @Override
-    public RecvData sendXNoThrow(S sendData) {
+    public R sendXNoThrow(S sendData) {
         try {
             return sendX(sendData);
         } catch (Exception e) {

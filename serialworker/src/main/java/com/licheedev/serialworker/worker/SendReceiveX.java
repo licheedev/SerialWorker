@@ -25,7 +25,7 @@ public interface SendReceiveX<S extends SendData, R extends RecvData> {
      * @return
      * @throws Exception
      */
-    RecvData sendX(S sendData) throws Exception;
+    R sendX(S sendData) throws Exception;
 
     /**
      * 发送并接收数据，会阻塞调用的线程，不会抛出异常。
@@ -34,7 +34,7 @@ public interface SendReceiveX<S extends SendData, R extends RecvData> {
      * @param sendData
      * @return
      */
-    RecvData sendXNoThrow(S sendData);
+    R sendXNoThrow(S sendData);
 
     /**
      * 异步发送数据。

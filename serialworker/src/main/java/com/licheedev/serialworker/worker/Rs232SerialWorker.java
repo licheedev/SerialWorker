@@ -155,12 +155,12 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
     }
 
     @Override
-    public RecvData syncSend(S sendData) throws Exception {
+    public R syncSend(S sendData) throws Exception {
         return callOnSerialThread(rawSendNoNullCallable(sendData, getTimeout()));
     }
 
     @Override
-    public RecvData syncSendNoThrow(S sendData) {
+    public R syncSendNoThrow(S sendData) {
         try {
             return syncSend(sendData);
         } catch (Exception e) {

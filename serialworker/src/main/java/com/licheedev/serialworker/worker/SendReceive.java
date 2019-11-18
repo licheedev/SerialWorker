@@ -61,7 +61,7 @@ public interface SendReceive<S extends SendData, R extends RecvData> {
      * @return
      * @throws Exception
      */
-    RecvData syncSend(S sendData) throws Exception;
+    R syncSend(S sendData) throws Exception;
 
     /**
      * 同步发送并接收数据，会阻塞调用的线程，不会抛出异常；
@@ -70,7 +70,7 @@ public interface SendReceive<S extends SendData, R extends RecvData> {
      * @param sendData
      * @return
      */
-    RecvData syncSendNoThrow(S sendData);
+    R syncSendNoThrow(S sendData);
 
     /**
      * 仅发送数据，不需要等待接收；会阻塞调用的线程；需要处理异常
