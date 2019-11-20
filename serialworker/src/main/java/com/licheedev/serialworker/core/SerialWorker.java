@@ -2,6 +2,8 @@ package com.licheedev.serialworker.core;
 
 import android.serialport.SerialPort;
 import android.support.annotation.Nullable;
+import io.reactivex.Observable;
+import io.reactivex.schedulers.Schedulers;
 
 /**
  * 真正的串口操作
@@ -9,42 +11,46 @@ import android.support.annotation.Nullable;
 public interface SerialWorker {
 
     /**
-     * 打开串口，同步，会阻塞线程
+     * 设置串口设备。
+     * [注意]修改配置后，需要重新打开串口
      *
      * @param devicePath 串口设备地址
      * @param baudrate 串口波特率
-     * @return 串口实例，null表示打开失败
      */
-    SerialPort openSerial(String devicePath, int baudrate);
+    void setDevice(String devicePath, int baudrate);
 
     /**
-     * 异步打开串口回调
+     * 设置串口参数（数据位、校验位、停止位）。
+     * 默认配置为：8数据位、无校验(0)、1停止位。
+     * [注意]修改配置后，需要重新打开串口
+     *
+     * @param dataBits 数据位；默认8,可选值为5~8
+     * @param parity 校验位；0:无校验位(NONE，默认)；1:奇校验位(ODD);2:偶校验位(EVEN)
+     * @param stopBits 停止位；默认1；1:1位停止位；2:2位停止位
+     * @return
      */
-    interface OpenCallback {
+    void setParams(int dataBits, int parity, int stopBits);
 
-        /**
-         * 打开成功
-         *
-         * @param serialPort
-         */
-        void onSuccess(SerialPort serialPort);
-
-        /**
-         * 打开失败
-         *
-         * @param tr
-         */
-        void onFailure(Throwable tr);
-    }
-
+    /**
+     * 打开串口，同步，会阻塞线程
+     *
+     * @return 串口实例
+     */
+    SerialPort openSerial() throws Exception;
+    
     /**
      * 打开串口，异步，回调在UI线程
      *
-     * @param devicePath 串口设备地址
-     * @param baudrate 串口波特率
      * @param callback
      */
-    void openSerial(String devicePath, int baudrate, OpenCallback callback);
+    void openSerial(Callback<SerialPort> callback);
+
+    /**
+     * 打开串口，已切IO线程（{@link Schedulers#io()}）
+     *
+     * @return
+     */
+    Observable<SerialPort> rxOpenSerial();
 
     /**
      * 关闭串口

@@ -30,7 +30,7 @@ dependencies {
     //    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
 
     // 串口
-    api 'com.github.licheedev.Android-SerialPort-API:serialport:1.0.1'
+    api 'com.github.licheedev:Android-SerialPort-API:2.0.0'
     // LogPlus
     api 'com.github.licheedev.SomeLibrary:myutils:0.02'
     // rx全家桶

@@ -6,7 +6,6 @@ import android.os.HandlerThread;
 import android.serialport.SerialPort;
 import com.licheedev.myutils.LogPlus;
 import com.licheedev.serialworker.core.Callback;
-import com.licheedev.serialworker.core.SerialWorker;
 import com.licheedev.serialworkerdemo.serial.command.RecvCommand;
 import com.licheedev.serialworkerdemo.serial.command.SendCommand;
 import com.licheedev.serialworkerdemo.serial.command.recv.Recv5DStatus;
@@ -73,6 +72,8 @@ public class SerialManager {
 
         // 
         mDoorSerialWorker = new DoorSerialWorker(mDispatchThreadHandler);
+        mDoorSerialWorker.setDevice(DOOR_SERIAL, DOOR_BAUDRATE); // 串口地址，波特率
+        mDoorSerialWorker.setParams(8, 0, 1); // 8数据位，无校验，1停止位
         // 设置超时
         mDoorSerialWorker.setTimeout(Protocol.RECEIVE_TIME_OUT);
         // 开启打印日志
@@ -98,6 +99,8 @@ public class SerialManager {
 
         // 刷卡器
         mCardSerialWorker = new CardReaderWorker(mDispatchThreadHandler);
+        mCardSerialWorker.setDevice(CARD_SERIAL, CARD_BAUDRATE); // 串口地址，波特率
+        mCardSerialWorker.setParams(8, 1, 1); // 8数据位，奇校验，1停止位
         // 开启打印日志
         mCardSerialWorker.enableLog(true, true);
         mCardSerialWorker.setCardCallback(new CardReaderWorker.CardCallback() {
@@ -118,8 +121,10 @@ public class SerialManager {
         return mRxState;
     }
 
-   public void initDevice() {
-        mDoorSerialWorker.openSerial(DOOR_SERIAL, DOOR_BAUDRATE, new SerialWorker.OpenCallback() {
+    public void initDevice() {
+
+        mDoorSerialWorker.setDevice(DOOR_SERIAL, DOOR_BAUDRATE);
+        mDoorSerialWorker.openSerial(new Callback<SerialPort>() {
             @Override
             public void onSuccess(SerialPort serialPort) {
                 LogPlus.i("DoorSerialWorker open success");
@@ -130,7 +135,7 @@ public class SerialManager {
                 LogPlus.w("DoorSerialWorker open failure", tr);
             }
         });
-        mCardSerialWorker.openSerial(CARD_SERIAL, CARD_BAUDRATE, new SerialWorker.OpenCallback() {
+        mCardSerialWorker.openSerial(new Callback<SerialPort>() {
             @Override
             public void onSuccess(SerialPort serialPort) {
                 LogPlus.i("CardSerialWorker open success");

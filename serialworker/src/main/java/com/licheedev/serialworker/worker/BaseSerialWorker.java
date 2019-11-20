@@ -4,6 +4,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.serialport.SerialPort;
 import android.support.annotation.Nullable;
+import android.text.TextUtils;
 import com.licheedev.myutils.LogPlus;
 import com.licheedev.serialworker.core.Callback;
 import com.licheedev.serialworker.core.DataReceiver;
@@ -17,6 +18,7 @@ import io.reactivex.ObservableEmitter;
 import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.exceptions.CompositeException;
 import io.reactivex.plugins.RxJavaPlugins;
+import io.reactivex.schedulers.Schedulers;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -48,6 +50,12 @@ public abstract class BaseSerialWorker implements SerialWorker {
     private boolean mLogSend = false; // 打印发送的数据
     private boolean mLogRecv = false; // 打印接收的数
     protected final Handler mUiHandler;
+
+    private String mDevicePath; // 串口地址
+    private int mBaudrate; // 串口波特率
+    private int mDataBits = 8; // 数据位
+    private int mParity = 0; // 校验位
+    private int mStopBits = 1; // 停止位
 
     public BaseSerialWorker() {
         // 用来操作串口发送数据的单一线程池
@@ -93,20 +101,31 @@ public abstract class BaseSerialWorker implements SerialWorker {
     /**
      * 打开串口，并抛出异常
      *
-     * @param devicePath
-     * @param baudrate
      * @return
      * @throws OpenSerialException
      */
-    private synchronized SerialPort doOpenSerial(String devicePath, int baudrate)
-        throws OpenSerialException {
+    private synchronized SerialPort doOpenSerial() throws OpenSerialException {
 
         if (mSerialPort != null) {
             closeSerial();
         }
 
         try {
-            mSerialPort = new SerialPort(devicePath, baudrate, 0);
+
+            if (TextUtils.isEmpty(mDevicePath) || mBaudrate == 0) {
+
+                throw new RuntimeException("SerialPort hasn't been configured! (device="
+                    + mDevicePath
+                    + ",baudrate="
+                    + mBaudrate);
+            }
+
+            mSerialPort = SerialPort.newBuilder(mDevicePath, mBaudrate)
+                .stopBits(mStopBits)
+                .dataBits(mDataBits)
+                .parity(mParity)
+                .build();
+
             mInputStream = new BufferedInputStream(mSerialPort.getInputStream());
             mOutputStream = new BufferedOutputStream(mSerialPort.getOutputStream());
 
@@ -116,7 +135,7 @@ public abstract class BaseSerialWorker implements SerialWorker {
         } catch (Exception e) {
             // 清理数据
             closeSerial();
-            // 跑出异常
+            // 抛出异常
             throw new OpenSerialException(ERROR_OPEN_SERIAL_FAILED, e);
         }
     }
@@ -157,7 +176,7 @@ public abstract class BaseSerialWorker implements SerialWorker {
             // 用来容纳有效数据的
             ValidData validData = new ValidData();
 
-            LogPlus.i(TAG, "Start Read Thread");
+            LogPlus.i(TAG, "Start SerialPort Read Thread(Path=" + mDevicePath + ")");
 
             int len;
 
@@ -209,74 +228,54 @@ public abstract class BaseSerialWorker implements SerialWorker {
         }
     }
 
-    /**
-     * 同步打开串口，会阻塞线程
-     *
-     * @param devicePath 串口设备地址
-     * @param baudrate 串口波特率
-     * @return null表示打开串口失败
-     */
     @Override
-    public SerialPort openSerial(final String devicePath, final int baudrate) {
-        try {
-            return callOnSerialThread(new Callable<SerialPort>() {
-                @Override
-                public SerialPort call() throws Exception {
-                    return doOpenSerial(devicePath, baudrate);
-                }
-            });
-        } catch (Exception e) {
-            return null;
-        }
+    public void setDevice(String devicePath, int baudrate) {
+        mDevicePath = devicePath;
+        mBaudrate = baudrate;
+    }
+
+    @Override
+    public void setParams(int dataBits, int parity, int stopBits) {
+        mDataBits = dataBits;
+        mParity = parity;
+        mStopBits = stopBits;
     }
 
     /**
-     * 异步打开串口
+     * 同步打开串口，会阻塞线程
      *
-     * @param devicePath 串口设备地址
-     * @param baudrate 串口波特率
-     * @param callback
+     * @return
      */
     @Override
-    public void openSerial(final String devicePath, final int baudrate,
-        final OpenCallback callback) {
+    public SerialPort openSerial() throws Exception {
 
-        try {
-            mSerialExecutor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        final SerialPort serialPort = doOpenSerial(devicePath, baudrate);
-                        if (callback != null) {
-                            mUiHandler.post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    callback.onSuccess(serialPort);
-                                }
-                            });
-                        }
-                    } catch (final Exception e) {
-                        if (callback != null) {
-                            mUiHandler.post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    callback.onFailure(e);
-                                }
-                            });
-                        }
-                    }
-                }
-            });
-        } catch (final Exception e) {
-            if (callback != null) {
-                mUiHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        callback.onFailure(e);
-                    }
-                });
+        return callOnSerialThread(new Callable<SerialPort>() {
+            @Override
+            public SerialPort call() throws Exception {
+                return doOpenSerial();
             }
-        }
+        });
+    }
+
+    @Override
+    public void openSerial(Callback<SerialPort> callback) {
+
+        asyncCallOnSerialThread(new Callable<SerialPort>() {
+            @Override
+            public SerialPort call() throws Exception {
+                return doOpenSerial();
+            }
+        }, callback);
+    }
+
+    @Override
+    public Observable<SerialPort> rxOpenSerial() {
+        return getRxObservable(new Callable<SerialPort>() {
+            @Override
+            public SerialPort call() throws Exception {
+                return openSerial();
+            }
+        }).subscribeOn(Schedulers.io());
     }
 
     /**
