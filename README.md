@@ -12,7 +12,7 @@ allprojects {
 }
 
   dependencies {
-        implementation 'com.github.licheedev:SerialWorker:2.0.0'
+        implementation 'com.github.licheedev:SerialWorker:2.0.1'
 }
 
 ```

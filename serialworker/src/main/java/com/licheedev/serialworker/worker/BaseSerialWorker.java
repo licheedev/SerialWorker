@@ -28,6 +28,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -382,8 +383,16 @@ public abstract class BaseSerialWorker implements SerialWorker {
         throws InterruptedException, ExecutionException, OpenSerialException, IOException,
         TimeoutException {
 
+        Future<T> future = null;
         try {
-            return executor.submit(callable).get();
+            future = executor.submit(callable);
+            return future.get();
+        } catch (InterruptedException e) {
+            // 如果被外部中断了，也要中断里面的任务
+            if (future != null) {
+                future.cancel(true);
+            }
+            throw e;
         } catch (ExecutionException e) {
             //e.printStackTrace();
             Throwable cause = e.getCause();
