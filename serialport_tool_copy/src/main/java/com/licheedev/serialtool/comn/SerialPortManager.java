@@ -76,7 +76,14 @@ public class SerialPortManager {
      */
     public SerialPort open(String devicePath, String baudrateString) {
 
-        return mSerialWorker.openSerial(devicePath, Integer.parseInt(baudrateString));
+        mSerialWorker.setDevice(devicePath, Integer.parseInt(baudrateString));
+
+        try {
+            return mSerialWorker.openSerial();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     /**
@@ -101,7 +108,7 @@ public class SerialPortManager {
         mSerialWorker.sendBytes(bytes, new Callback<Void>() {
             @Override
             public void onSuccess(Void aVoid) {
-                LogPlus.i("send success!"+Thread.currentThread());
+                LogPlus.i("send success!" + Thread.currentThread());
             }
 
             @Override
