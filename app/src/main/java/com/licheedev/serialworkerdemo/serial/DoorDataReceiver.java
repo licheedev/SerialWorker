@@ -55,7 +55,7 @@ public class DoorDataReceiver implements DataReceiver<RecvCommand> {
                 final int dataN = dataLen - 1; // 减去命令码那1字节
                 // 如果数据域长度过大，表示数据可能出现异常
                 if (dataN > Protocol.MAX_N) {
-                    //回到“第二位”，继续找到下一个3AA3
+                    //回到“第二位”，继续找到下一个3BB3
                     mByteBuffer.position(frameStart + 2);
                     continue;
                 }
@@ -83,7 +83,7 @@ public class DoorDataReceiver implements DataReceiver<RecvCommand> {
                     // 收到有效数据
                     validData.add(allPack);
                 } else {
-                    // 不一致则回到“第二位”，继续找到下一个3AA3
+                    // 不一致则回到“第二位”，继续找到下一个3BB3
                     mByteBuffer.position(frameStart + 2);
                 }
             }
