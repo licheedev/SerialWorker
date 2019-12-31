@@ -258,22 +258,52 @@ public class ByteUtil {
      *
      * @param value 要转换的数值
      * @param byteLen 该值占用的字节大小
+     * @param withDivider 是否每8个bit增加一个分隔符
      * @return
      */
-    public static String toBinString(long value, int byteLen) {
+    public static String toBinString(long value, int byteLen, boolean withDivider) {
 
         int bitLen = byteLen * 8;
+
         char[] chars = new char[bitLen];
         Arrays.fill(chars, '0');
         int charPos = bitLen;
         do {
+            --charPos;
             if ((value & 1) > 0) {
-                chars[--charPos] = '1';
+                chars[charPos] = '1';
             }
             value >>>= 1;
         } while (value != 0 && charPos > 0);
 
+        if (withDivider && byteLen > 1) {
+            StringBuilder stringBuilder = new StringBuilder();
+
+            boolean alreadyAppend = false;
+            for (int i = 0; i < byteLen; i++) {
+                if (alreadyAppend) {
+                    stringBuilder.append(' ');
+                } else {
+                    alreadyAppend = true;
+                }
+                stringBuilder.append(chars, i * 8, 8);
+            }
+
+            return stringBuilder.toString();
+        }
+
         return new String(chars);
+    }
+
+    /**
+     * 转换二进制数值
+     *
+     * @param value 要转换的数值
+     * @param byteLen 该值占用的字节大小
+     * @return
+     */
+    public static String toBinString(long value, int byteLen) {
+        return toBinString(value, byteLen, true);
     }
 
     /**
