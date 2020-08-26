@@ -27,11 +27,10 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
 
-    // 串口
-    api 'com.github.licheedev:Android-SerialPort-API:2.0.0'
     api 'androidx.annotation:annotation:1.1.0'
-    def somelib_version = "1.2.0"
-    api "com.github.licheedev.SomeLibrary:myutils:$somelib_version"
+    // 串口
+    api 'com.licheedev:android-serialport:2.1.1'
+    api 'com.licheedev:some-utils:1.0.0'
 }
 
-apply from: '../jitpack.gradle'
+apply from: './bintray.gradle'

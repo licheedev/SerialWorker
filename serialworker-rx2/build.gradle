@@ -32,9 +32,12 @@ dependencies {
     api "io.reactivex.rxjava2:rxjava:2.2.19"
     api 'io.reactivex.rxjava2:rxandroid:2.1.1'
 
+//    if (true) {
     if (rootProject.ext.useRemote) {
-        api "com.github.licheedev.SerialWorker:serialworker:$lastVer"
+        api "com.licheedev:serialworker:${rootProject.ext.version["serialworker"]}"
     } else {
         api project(':serialworker')
     }
 }
+
+apply from: './bintray.gradle'

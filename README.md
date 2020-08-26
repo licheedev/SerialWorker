@@ -1,18 +1,21 @@
 # SerialWorker
 
-[![](https://jitpack.io/v/licheedev/SerialWorker.svg)](https://jitpack.io/#licheedev/SerialWorker)
-
 ```groovy
 
 allprojects {
   repositories {
     ...
-    maven { url 'https://jitpack.io' }
+    maven { url 'https://dl.bintray.com/licheedev/maven' }
   }
 }
 
   dependencies {
-        implementation 'com.github.licheedev:SerialWorker:2.0.1'
+        implementation 'com.licheedev:serialworker:3.0.0'
+        // 或者（用rxjava2的）
+        implementation 'com.licheedev:serialworker-rx2:3.0.0'
+        // 或者（用rxjava3的）
+        implementation 'com.licheedev:serialworker-rx3:3.0.0'
+        
 }
 
 ```
