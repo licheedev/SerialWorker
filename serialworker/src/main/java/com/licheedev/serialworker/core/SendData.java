@@ -1,6 +1,7 @@
 package com.licheedev.serialworker.core;
 
 import android.os.SystemClock;
+import androidx.annotation.NonNull;
 
 /**
  * 表示发送的数据
@@ -12,6 +13,7 @@ public interface SendData {
      *
      * @return
      */
+    @NonNull
     byte[] toBytes();
 
     /**

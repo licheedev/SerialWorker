@@ -1,7 +1,7 @@
 package com.licheedev.serialworkerdemo.serial;
 
 import android.os.Handler;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import com.licheedev.serialworker.core.DataReceiver;
 import com.licheedev.serialworker.core.ValidData;
 import com.licheedev.serialworker.worker.BaseSerialWorker;

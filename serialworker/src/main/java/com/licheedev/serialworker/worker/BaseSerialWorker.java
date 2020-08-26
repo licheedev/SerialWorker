@@ -3,22 +3,17 @@ package com.licheedev.serialworker.worker;
 import android.os.Handler;
 import android.os.Looper;
 import android.serialport.SerialPort;
-import android.support.annotation.Nullable;
 import android.text.TextUtils;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import com.licheedev.myutils.LogPlus;
+import com.licheedev.myutils.MyClock;
+import com.licheedev.myutils.hardware.ByteUtil;
 import com.licheedev.serialworker.core.Callback;
 import com.licheedev.serialworker.core.DataReceiver;
 import com.licheedev.serialworker.core.OpenSerialException;
 import com.licheedev.serialworker.core.SerialWorker;
 import com.licheedev.serialworker.core.ValidData;
-import com.licheedev.serialworker.util.MyClock;
-import com.licheedev.serialworker.util.Util;
-import io.reactivex.Observable;
-import io.reactivex.ObservableEmitter;
-import io.reactivex.ObservableOnSubscribe;
-import io.reactivex.exceptions.CompositeException;
-import io.reactivex.plugins.RxJavaPlugins;
-import io.reactivex.schedulers.Schedulers;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -44,7 +39,7 @@ public abstract class BaseSerialWorker implements SerialWorker {
     protected OutputStream mOutputStream;
     protected SerialPort mSerialPort;
 
-    private DefaultSerialReadThread mReadThread; // 读线程
+    protected DefaultSerialReadThread mReadThread; // 读线程
 
     protected final ExecutorService mSerialExecutor;
 
@@ -80,7 +75,7 @@ public abstract class BaseSerialWorker implements SerialWorker {
      * @param offset 接收收据在缓存中的偏移
      * @param length 接收到的数据长度
      */
-    protected abstract void onReceiveData(byte[] receiveBuffer, int offset, int length);
+    protected abstract void onReceiveData(@NonNull byte[] receiveBuffer, int offset, int length);
 
     /**
      * 新建数据接收器
@@ -97,7 +92,8 @@ public abstract class BaseSerialWorker implements SerialWorker {
      * @param validData 收到的有效数据
      * @param receiver 数据接收器，参考{@link #newReceiver()}
      */
-    protected abstract void handleValidData(ValidData validData, DataReceiver receiver);
+    protected abstract void handleValidData(@NonNull ValidData validData,
+        @NonNull DataReceiver receiver);
 
     /**
      * 打开串口，并抛出异常
@@ -146,7 +142,8 @@ public abstract class BaseSerialWorker implements SerialWorker {
      * 默认开启了一个读线程{@link DefaultSerialReadThread}不停读取数据，然后使用{@link DataReceiver}对数据进行处理;
      * 如果需要完全控制读写，则可以重写这个方法。
      */
-    protected void onSerialOpened(InputStream inputStream, OutputStream outputStream) {
+    protected void onSerialOpened(@NonNull InputStream inputStream,
+        @NonNull OutputStream outputStream) {
         // 打开读线程
         mReadThread = new DefaultSerialReadThread();
         mReadThread.start();
@@ -188,7 +185,8 @@ public abstract class BaseSerialWorker implements SerialWorker {
                         if (len > 0) {
                             // 打印日志
                             if (isLogRecv()) {
-                                LogPlus.i(TAG, "Recv=" + Util.bytes2HexStr(mRecvBuffer, 0, len));
+                                LogPlus.i(TAG,
+                                    "Recv=" + ByteUtil.bytes2HexStr(mRecvBuffer, 0, len));
                             }
 
                             onReceiveData(mRecvBuffer, 0, len);
@@ -230,7 +228,7 @@ public abstract class BaseSerialWorker implements SerialWorker {
     }
 
     @Override
-    public void setDevice(String devicePath, int baudrate) {
+    public void setDevice(@NonNull String devicePath, int baudrate) {
         mDevicePath = devicePath;
         mBaudrate = baudrate;
     }
@@ -247,6 +245,7 @@ public abstract class BaseSerialWorker implements SerialWorker {
      *
      * @return
      */
+    @NonNull
     @Override
     public SerialPort openSerial() throws Exception {
 
@@ -267,16 +266,6 @@ public abstract class BaseSerialWorker implements SerialWorker {
                 return doOpenSerial();
             }
         }, callback);
-    }
-
-    @Override
-    public Observable<SerialPort> rxOpenSerial() {
-        return getRxObservable(new Callable<SerialPort>() {
-            @Override
-            public SerialPort call() throws Exception {
-                return openSerial();
-            }
-        }).subscribeOn(Schedulers.io());
     }
 
     /**
@@ -472,39 +461,6 @@ public abstract class BaseSerialWorker implements SerialWorker {
     }
 
     /**
-     * Rx发送数据源
-     *
-     * @return
-     */
-    protected <T> Observable<T> getRxObservable(final Callable<T> callable) {
-
-        return Observable.create(new ObservableOnSubscribe<T>() {
-            @Override
-            public void subscribe(ObservableEmitter<T> emitter) throws Exception {
-                boolean terminated = false;
-                try {
-                    T t = callable.call();
-                    if (!emitter.isDisposed()) {
-                        terminated = true;
-                        emitter.onNext(t);
-                        emitter.onComplete();
-                    }
-                } catch (Throwable t) {
-                    if (terminated) {
-                        RxJavaPlugins.onError(t);
-                    } else if (!emitter.isDisposed()) {
-                        try {
-                            emitter.onError(t);
-                        } catch (Throwable inner) {
-                            RxJavaPlugins.onError(new CompositeException(t, inner));
-                        }
-                    }
-                }
-            }
-        });
-    }
-
-    /**
      * 在当前线程发送数据
      *
      * @param bytes
@@ -519,7 +475,7 @@ public abstract class BaseSerialWorker implements SerialWorker {
         }
 
         if (isLogSend()) {
-            LogPlus.i(TAG, "Send=" + Util.bytes2HexStr(bytes, 0, len));
+            LogPlus.i(TAG, "Send=" + ByteUtil.bytes2HexStr(bytes, 0, len));
         }
 
         if (mOutputStream == null) {

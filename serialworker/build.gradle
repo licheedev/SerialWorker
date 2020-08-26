@@ -1,17 +1,15 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 28
-
-
+    compileSdkVersion 29
 
     defaultConfig {
-        minSdkVersion 8
-        targetSdkVersion 28
+        minSdkVersion 15
+        targetSdkVersion 29
         versionCode 1
         versionName "1.0"
 
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
 
     buildTypes {
@@ -25,17 +23,15 @@ android {
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 
-        testImplementation 'junit:junit:4.12'
-        androidTestImplementation 'com.android.support.test:runner:1.0.2'
-        androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
+    testImplementation 'junit:junit:4.13'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0'
 
     // 串口
     api 'com.github.licheedev:Android-SerialPort-API:2.0.0'
-    // LogPlus
-    api 'com.github.licheedev.SomeLibrary:myutils:0.02'
-    // rx全家桶
-    api 'io.reactivex.rxjava2:rxjava:2.2.6'
-    api 'com.trello.rxlifecycle2:rxlifecycle-android:2.2.2'
+    api 'androidx.annotation:annotation:1.1.0'
+    def somelib_version = "1.2.0"
+    api "com.github.licheedev.SomeLibrary:myutils:$somelib_version"
 }
 
 apply from: '../jitpack.gradle'

@@ -1,6 +1,7 @@
 package com.licheedev.serialworker.worker;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import com.licheedev.serialworker.core.Callback;
 import com.licheedev.serialworker.core.RecvData;
 import com.licheedev.serialworker.core.SendData;
@@ -18,19 +19,19 @@ public abstract class Rs485SerialWorker<S extends SendData, R extends RecvData>
     public static final String NO_SUPPORT_RS485 = "Don't call this method on RS485";
 
     @Override
-    public void syncSendOnly(S sendData) throws Exception {
+    public void syncSendOnly(@NonNull S sendData) throws Exception {
         throw new RuntimeException(NO_SUPPORT_RS485);
         //super.syncSendOnly(sendData);
     }
 
     @Override
-    public void syncSendOnlyNoThrow(S sendData) {
+    public void syncSendOnlyNoThrow(@NonNull S sendData) {
         throw new RuntimeException(NO_SUPPORT_RS485);
         //super.syncSendOnlyNoThrow(sendData);
     }
 
     @Override
-    public void sendOnly(S sendData, @Nullable Callback<Void> callback) {
+    public void sendOnly(@NonNull S sendData, @Nullable Callback<Void> callback) {
         throw new RuntimeException(NO_SUPPORT_RS485);
         //super.sendOnly(sendData, callback);
     }

@@ -1,9 +1,8 @@
 package com.licheedev.serialworker.core;
 
 import android.serialport.SerialPort;
-import android.support.annotation.Nullable;
-import io.reactivex.Observable;
-import io.reactivex.schedulers.Schedulers;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 /**
  * 真正的串口操作
@@ -36,21 +35,15 @@ public interface SerialWorker {
      *
      * @return 串口实例
      */
+    @NonNull
     SerialPort openSerial() throws Exception;
-    
+
     /**
      * 打开串口，异步，回调在UI线程
      *
      * @param callback
      */
     void openSerial(Callback<SerialPort> callback);
-
-    /**
-     * 打开串口，已切IO线程（{@link Schedulers#io()}）
-     *
-     * @return
-     */
-    Observable<SerialPort> rxOpenSerial();
 
     /**
      * 关闭串口

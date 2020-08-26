@@ -1,5 +1,6 @@
 package com.licheedev.serialworker.core;
 
+import androidx.annotation.NonNull;
 import java.util.ArrayList;
 
 /**
@@ -13,7 +14,7 @@ public class ValidData {
         mBuffer = new ArrayList<>();
     }
 
-    public void add(byte[] validData) {
+    public void add(@NonNull byte[] validData) {
         mBuffer.add(validData);
     }
 
@@ -21,6 +22,7 @@ public class ValidData {
         mBuffer.clear();
     }
 
+    @NonNull
     public ArrayList<byte[]> getAll() {
         return mBuffer;
     }
@@ -32,7 +34,8 @@ public class ValidData {
     public boolean isEmpty() {
         return mBuffer.isEmpty();
     }
-
+    
+    @NonNull
     public ArrayList<byte[]> cloneData() {
         return new ArrayList<>(mBuffer);
     }

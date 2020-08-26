@@ -1,5 +1,7 @@
 package com.licheedev.serialworker.core;
 
+import androidx.annotation.NonNull;
+
 /**
  * 表示接收到的数据
  */
@@ -17,5 +19,6 @@ public interface RecvData {
      *
      * @return
      */
+    @NonNull
     byte[] getAllPack();
 }

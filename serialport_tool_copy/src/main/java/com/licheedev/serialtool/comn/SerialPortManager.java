@@ -1,7 +1,7 @@
 package com.licheedev.serialtool.comn;
 
 import android.serialport.SerialPort;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import com.licheedev.myutils.LogPlus;
 import com.licheedev.serialtool.comn.message.LogManager;
 import com.licheedev.serialtool.comn.message.RecvMessage;

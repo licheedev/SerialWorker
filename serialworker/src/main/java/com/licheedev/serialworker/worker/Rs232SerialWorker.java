@@ -1,7 +1,7 @@
 package com.licheedev.serialworker.worker;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import com.licheedev.serialworker.core.Callback;
 import com.licheedev.serialworker.core.DataReceiver;
 import com.licheedev.serialworker.core.OpenSerialException;
@@ -9,8 +9,6 @@ import com.licheedev.serialworker.core.RecvData;
 import com.licheedev.serialworker.core.SendData;
 import com.licheedev.serialworker.core.ValidData;
 import com.licheedev.serialworker.core.WaitRoom;
-import io.reactivex.Observable;
-import io.reactivex.schedulers.Schedulers;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -40,7 +38,7 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
     }
 
     @Override
-    public void handleValidData(ValidData validData, DataReceiver receiver) {
+    public void handleValidData(@NonNull ValidData validData, DataReceiver receiver) {
         ArrayList<byte[]> all = validData.getAll();
         for (byte[] bytes : all) {
             R r = (R) receiver.adaptReceive(bytes);
@@ -71,7 +69,7 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
     }
 
     @Override
-    public void onReceiveData(byte[] receiveBuffer, int offset, int length) {
+    public void onReceiveData(@NonNull byte[] receiveBuffer, int offset, int length) {
         // ignore
     }
 
@@ -135,7 +133,7 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
     }
 
     @NonNull
-    private Callable<R> rawSendCallable(final S sendData, final long timeout) {
+    protected Callable<R> rawSendCallable(final S sendData, final long timeout) {
         return new Callable<R>() {
             @Override
             public R call() throws Exception {
@@ -145,7 +143,7 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
     }
 
     @NonNull
-    private Callable<R> rawSendNoNullCallable(final S sendData, final long timeout) {
+    protected Callable<R> rawSendNoNullCallable(final S sendData, final long timeout) {
         return new Callable<R>() {
             @Override
             public R call() throws Exception {
@@ -155,12 +153,12 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
     }
 
     @Override
-    public R syncSend(S sendData) throws Exception {
+    public R syncSend(@NonNull S sendData) throws Exception {
         return callOnSerialThread(rawSendNoNullCallable(sendData, getTimeout()));
     }
 
     @Override
-    public R syncSendNoThrow(S sendData) {
+    public R syncSendNoThrow(@NonNull S sendData) {
         try {
             return syncSend(sendData);
         } catch (Exception e) {
@@ -170,12 +168,12 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
     }
 
     @Override
-    public void syncSendOnly(S sendData) throws Exception {
+    public void syncSendOnly(@NonNull S sendData) throws Exception {
         callOnSerialThread(rawSendCallable(sendData, 0));
     }
 
     @Override
-    public void syncSendOnlyNoThrow(S sendData) {
+    public void syncSendOnlyNoThrow(@NonNull S sendData) {
         try {
             syncSendOnly(sendData);
         } catch (Exception e) {
@@ -184,12 +182,12 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
     }
 
     @Override
-    public void send(final S sendData, @Nullable final Callback<R> callback) {
+    public void send(@NonNull final S sendData, @Nullable final Callback<R> callback) {
         asyncCallOnSerialThread(rawSendNoNullCallable(sendData, getTimeout()), callback);
     }
 
     @Override
-    public <T extends R> void send(final S sendData, Class<T> cast,
+    public <T extends R> void send(@NonNull final S sendData, @NonNull Class<T> cast,
         @Nullable final Callback<T> callback) {
 
         asyncCallOnSerialThread(new Callable<T>() {
@@ -201,7 +199,7 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
     }
 
     @Override
-    public void sendOnly(final S sendData, @Nullable final Callback<Void> callback) {
+    public void sendOnly(@NonNull final S sendData, @Nullable final Callback<Void> callback) {
 
         asyncCallOnSerialThread(new Callable<Void>() {
             @Override
@@ -212,29 +210,5 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
         }, callback);
     }
 
-    @Override
-    public Observable<R> rxSend(final S sendData) {
 
-        return getRxObservable(new Callable<R>() {
-            @Override
-            public R call() throws Exception {
-                return callOnSerialThread(rawSendNoNullCallable(sendData, getTimeout()));
-            }
-        });
-    }
-
-    @Override
-    public <T extends R> Observable<T> rxSend(S sendData, Class<T> cast) {
-        return rxSend(sendData).cast(cast);
-    }
-
-    @Override
-    public Observable<R> rxSendOnIo(S sendData) {
-        return rxSend(sendData).subscribeOn(Schedulers.io());
-    }
-
-    @Override
-    public <T extends R> Observable<T> rxSendOnIo(S sendData, Class<T> cast) {
-        return rxSendOnIo(sendData).cast(cast);
-    }
 }

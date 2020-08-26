@@ -1,7 +1,7 @@
 package com.licheedev.serialworkerdemo.serial.command.recv;
 
 import android.os.SystemClock;
-import com.licheedev.serialworker.util.Util;
+import com.licheedev.serialworkerdemo.serial.ByteUtil;
 import com.licheedev.serialworkerdemo.serial.command.RecvCommand;
 import java.net.InetSocketAddress;
 
@@ -44,6 +44,6 @@ public class RecvBase implements RecvCommand {
 
     @Override
     public String toString() {
-        return "数据=" + Util.bytes2HexStr(mAllPack);
+        return "数据=" + ByteUtil.bytes2HexStr(mAllPack);
     }
 }

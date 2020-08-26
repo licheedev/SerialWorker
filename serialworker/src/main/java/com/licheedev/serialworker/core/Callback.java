@@ -1,5 +1,8 @@
 package com.licheedev.serialworker.core;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 /**
  * 通用的回调
  *
@@ -7,7 +10,7 @@ package com.licheedev.serialworker.core;
  */
 public interface Callback<T> {
 
-    void onSuccess(T t);
+    void onSuccess(@Nullable T t);
 
-    void onFailure(Throwable tr);
+    void onFailure(@NonNull Throwable tr);
 }

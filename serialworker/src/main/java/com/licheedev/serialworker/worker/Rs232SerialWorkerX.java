@@ -1,12 +1,10 @@
 package com.licheedev.serialworker.worker;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import com.licheedev.serialworker.core.Callback;
 import com.licheedev.serialworker.core.OpenSerialException;
 import com.licheedev.serialworker.core.RecvData;
 import com.licheedev.serialworker.core.SendData;
-import io.reactivex.Observable;
-import io.reactivex.schedulers.Schedulers;
 import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -36,7 +34,7 @@ public abstract class Rs232SerialWorkerX<S extends SendData, R extends RecvData>
      *
      * @param sendData
      */
-    private R rawSendX(final S sendData)
+    protected R rawSendX(final S sendData)
         throws IOException, OpenSerialException, InterruptedException, ExecutionException,
         TimeoutException {
 
@@ -67,7 +65,7 @@ public abstract class Rs232SerialWorkerX<S extends SendData, R extends RecvData>
         return response;
     }
 
-    private Callable<R> rawSendXCallable(final S sendData) {
+    protected Callable<R> rawSendXCallable(final S sendData) {
         return new Callable<R>() {
             @Override
             public R call() throws Exception {
@@ -118,28 +116,5 @@ public abstract class Rs232SerialWorkerX<S extends SendData, R extends RecvData>
         }, callback);
     }
 
-    @Override
-    public Observable<R> rxSendX(final S sendData) {
-        return getRxObservable(new Callable<R>() {
-            @Override
-            public R call() throws Exception {
-                return callOnReceiveThread(rawSendXCallable(sendData));
-            }
-        });
-    }
 
-    @Override
-    public <T extends R> Observable<T> rxSendX(S sendData, Class<T> cast) {
-        return rxSendX(sendData).cast(cast);
-    }
-
-    @Override
-    public Observable<R> rxSendXOnIo(S sendData) {
-        return getRxObservable(rawSendXCallable(sendData)).subscribeOn(Schedulers.io());
-    }
-
-    @Override
-    public <T extends R> Observable<T> rxSendXOnIo(S sendData, Class<T> cast) {
-        return rxSendXOnIo(sendData).cast(cast);
-    }
 }

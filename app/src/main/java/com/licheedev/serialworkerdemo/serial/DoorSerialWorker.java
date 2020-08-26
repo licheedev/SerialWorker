@@ -1,16 +1,16 @@
 package com.licheedev.serialworkerdemo.serial;
 
 import android.os.Handler;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import com.licheedev.serialworker.core.DataReceiver;
-import com.licheedev.serialworker.worker.Rs232SerialWorkerX;
+import com.licheedev.serialworker.worker.RxRs232SerialWorkerX;
 import com.licheedev.serialworkerdemo.serial.command.RecvCommand;
 import com.licheedev.serialworkerdemo.serial.command.SendCommand;
 
 /**
  * 柜子的串口操作
  */
-public class DoorSerialWorker extends Rs232SerialWorkerX<SendCommand, RecvCommand> {
+public class DoorSerialWorker extends RxRs232SerialWorkerX<SendCommand, RecvCommand> {
 
     private final Handler mRecvHandler;
 
