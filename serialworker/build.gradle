@@ -30,7 +30,11 @@ dependencies {
     api 'androidx.annotation:annotation:1.1.0'
     // 串口
     api 'com.licheedev:android-serialport:2.1.1'
-    api 'com.licheedev:some-utils:1.0.0'
+    // byteutil等
+    api 'com.licheedev:hardwareutils:1.0.0'
+    // log
+    api 'com.licheedev:logplus:1.0.0'
+
 }
 
 apply from: './bintray.gradle'

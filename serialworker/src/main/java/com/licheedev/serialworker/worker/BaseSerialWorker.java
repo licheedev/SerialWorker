@@ -6,9 +6,9 @@ import android.serialport.SerialPort;
 import android.text.TextUtils;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import com.licheedev.hwutils.ByteUtil;
+import com.licheedev.hwutils.SystemClockEx;
 import com.licheedev.myutils.LogPlus;
-import com.licheedev.myutils.MyClock;
-import com.licheedev.myutils.hardware.ByteUtil;
 import com.licheedev.serialworker.core.Callback;
 import com.licheedev.serialworker.core.DataReceiver;
 import com.licheedev.serialworker.core.OpenSerialException;
@@ -204,7 +204,7 @@ public abstract class BaseSerialWorker implements SerialWorker {
                         }
                     } else {
                         // 暂停一点时间，免得一直循环造成CPU占用率过高
-                        MyClock.sleep(10);
+                        SystemClockEx.sleep(10);
                     }
 
                     notifyRunningReceive(mRunning);
