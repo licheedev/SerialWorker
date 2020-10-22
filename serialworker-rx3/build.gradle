@@ -32,8 +32,8 @@ dependencies {
     api "io.reactivex.rxjava3:rxjava:3.0.5"
     api 'io.reactivex.rxjava3:rxandroid:3.0.0'
 
-    if (true) {
-//    if (rootProject.ext.useRemote) {
+    if (rootProject.ext.useRemote) {
+    //if (true) {
         api "com.licheedev:serialworker:${rootProject.ext.version["serialworker"]}"
     } else {
         api project(':serialworker')
