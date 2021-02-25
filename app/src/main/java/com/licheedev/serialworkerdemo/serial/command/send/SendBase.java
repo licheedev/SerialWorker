@@ -78,4 +78,9 @@ abstract class SendBase implements SendCommand {
     public void updateSendTime() {
         mSendTime = SystemClock.elapsedRealtime();
     }
+
+    @Override
+    public long timeout() {
+        return 0;
+    }
 }

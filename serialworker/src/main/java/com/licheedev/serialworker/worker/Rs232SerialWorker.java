@@ -93,6 +93,10 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
 
         SingleWaitRoom<S, R> waitRoom = null;
         R response = null;
+
+        if (sendData.timeout() > 0) { // 优先使用命令指定的超时时间
+            timeout = sendData.timeout();
+        }
         try {
             if (timeout > 0) {
                 waitRoom = new SingleWaitRoom<>(this, sendData);
@@ -209,6 +213,4 @@ public abstract class Rs232SerialWorker<S extends SendData, R extends RecvData>
             }
         }, callback);
     }
-
-
 }

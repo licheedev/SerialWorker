@@ -3,7 +3,6 @@ package com.licheedev.serialworker.worker;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.licheedev.serialworker.core.Callback;
-import com.licheedev.serialworker.core.DataReceiver;
 import com.licheedev.serialworker.core.RecvData;
 import com.licheedev.serialworker.core.SendData;
 
@@ -23,14 +22,6 @@ interface SendReceive<S extends SendData, R extends RecvData> {
      * @return
      */
     boolean isMyResponse(@NonNull S sendData, @NonNull R recvData);
-
-    /**
-     * 新建数据接收器
-     *
-     * @return 尽量new出来，不要复用成员变量
-     */
-    @Nullable
-    DataReceiver<R> newReceiver();
 
     /**
      * 收到有效的数据

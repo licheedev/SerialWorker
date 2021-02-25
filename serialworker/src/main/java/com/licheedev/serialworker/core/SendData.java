@@ -27,4 +27,7 @@ public interface SendData {
      * 更新发送数据的时间，建议使用{@link SystemClock#elapsedRealtime()}
      */
     void updateSendTime();
+
+    /** 特定超时时间，毫秒。大于0时才起作用，否则使用全局的 */
+    long timeout();
 }

@@ -75,7 +75,9 @@ public abstract class BaseSerialWorker implements SerialWorker {
      * @param offset 接收收据在缓存中的偏移
      * @param length 接收到的数据长度
      */
-    protected abstract void onReceiveData(@NonNull byte[] receiveBuffer, int offset, int length);
+    protected void onReceiveData(@NonNull byte[] receiveBuffer, int offset, int length) {
+        // TODO 默认空实现
+    }
 
     /**
      * 新建数据接收器
@@ -83,7 +85,9 @@ public abstract class BaseSerialWorker implements SerialWorker {
      * @return 尽量new出来，不要复用成员变量;如果不需要处理收到的数据，可以返回null
      */
     @Nullable
-    protected abstract DataReceiver newReceiver();
+    protected DataReceiver newReceiver() {
+        return null;   // TODO 默认null
+    }
 
     /**
      * 收到有效数据(在串口的读线程中运行，尽量不要执行耗时操作)；
@@ -92,8 +96,9 @@ public abstract class BaseSerialWorker implements SerialWorker {
      * @param validData 收到的有效数据
      * @param receiver 数据接收器，参考{@link #newReceiver()}
      */
-    protected abstract void handleValidData(@NonNull ValidData validData,
-        @NonNull DataReceiver receiver);
+    protected void handleValidData(@NonNull ValidData validData, @NonNull DataReceiver receiver) {
+        // TODO 默认空实现
+    }
 
     /**
      * 打开串口，并抛出异常
@@ -400,6 +405,13 @@ public abstract class BaseSerialWorker implements SerialWorker {
         }
     }
 
+    /**
+     * 在线程池执行 callable 的操作，然后在UI线程中执行 callback的操作
+     *
+     * @param executor
+     * @param callable
+     * @param callback
+     */
     protected void asyncCallOnExecutor(ExecutorService executor, final Callable<?> callable,
         final Callback callback) {
         try {
@@ -512,8 +524,11 @@ public abstract class BaseSerialWorker implements SerialWorker {
         try {
             syncSendBytes(bytes, offset, length);
         } catch (Exception e) {
-            //e.printStackTrace();
             // 不用管
+            if (isLogSend() || isLogRecv()) {
+                LogPlus.i(TAG,
+                    "Send bytes=" + ByteUtil.bytes2HexStr(bytes, offset, length) + " failed", e);
+            }
         }
     }
 
