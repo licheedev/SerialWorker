@@ -37,4 +37,4 @@ dependencies {
 
 }
 
-apply from: './bintray.gradle'
+apply from: './maven_publish.gradle'

@@ -6,8 +6,7 @@ buildscript {
     ext {
 
         useRemote = false
-        siteUrl = "https://github.com/licheedev"
-        gitUrl = "https://github.com/licheedev/SerialWorker.git"
+        gitUrl = "https://github.com/licheedev/SerialWorker"
 
         // 真正的版本
         version = [//
@@ -20,7 +19,7 @@ buildscript {
 
     repositories {
         google()
-        jcenter()
+        mavenCentral()
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:4.0.1'
@@ -28,17 +27,14 @@ buildscript {
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
-
-        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.8.4'
-        classpath 'com.github.dcendents:android-maven-gradle-plugin:2.1'
+        classpath 'org.jetbrains.dokka:dokka-gradle-plugin:1.4.32'
     }
 }
 
 allprojects {
     repositories {
         google()
-        jcenter()
-        maven { url 'https://dl.bintray.com/licheedev/maven' }
+        mavenCentral()
     }
 }
 
