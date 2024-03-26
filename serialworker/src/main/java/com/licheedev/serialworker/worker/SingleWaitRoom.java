@@ -6,9 +6,9 @@ import com.licheedev.serialworker.core.SendData;
 
 public class SingleWaitRoom<S extends SendData, R extends RecvData> implements WaitRoom<R> {
 
-    private final SendReceive<S, R> mWork;
-    private final S mSendData;
-    private R mResponse;
+    protected final SendReceive<S, R> mWork;
+    protected final S mSendData;
+    protected R mResponse;
 
     public SingleWaitRoom(SendReceive<S, R> work, S sendData) {
         mWork = work;
@@ -45,7 +45,7 @@ public class SingleWaitRoom<S extends SendData, R extends RecvData> implements W
         // 空实现
     }
 
-    private void waitNoThrow(long timeout) {
+    protected void waitNoThrow(long timeout) {
         try {
             wait(timeout);
         } catch (InterruptedException e) {

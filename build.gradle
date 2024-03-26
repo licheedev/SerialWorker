@@ -10,9 +10,9 @@ buildscript {
 
         // 真正的版本
         version = [//
-                   serialworker    : "3.0.2",
-                   serialworker_rx2: "3.0.2",
-                   serialworker_rx3: "3.0.2"
+                   serialworker    : "3.0.3",
+                   serialworker_rx2: "3.0.3",
+                   serialworker_rx3: "3.0.3"
                    //
         ]
     }
@@ -22,7 +22,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:4.0.1'
+        classpath 'com.android.tools.build:gradle:4.2.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
 
         // NOTE: Do not place your application dependencies here; they belong

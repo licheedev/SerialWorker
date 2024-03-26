@@ -32,8 +32,8 @@ import java.util.concurrent.TimeoutException;
 public abstract class BaseSerialWorker implements SerialWorker {
 
     public static final String TAG = "SerialWorker";
-    public static final String ERROR_NO_SERIALPORT_OPENED = "SerialPort hasn't been opened!";
-    public static final String ERROR_OPEN_SERIAL_FAILED = "Open SerialPort failed!";
+    public static final String ERROR_NO_SERIALPORT_OPENED = "SerialPort(%s) hasn't been opened!";
+    public static final String ERROR_OPEN_SERIAL_FAILED = "Open SerialPort(%s) failed!";
 
     protected InputStream mInputStream;
     protected OutputStream mOutputStream;
@@ -57,6 +57,15 @@ public abstract class BaseSerialWorker implements SerialWorker {
         // 用来操作串口发送数据的单一线程池
         mSerialExecutor = Executors.newSingleThreadExecutor();
         mUiHandler = new Handler(Looper.getMainLooper());
+    }
+
+    /**
+     * 获取串口名称，默认为"(串口地址,波特率)"
+     *
+     * @return
+     */
+    public String getSerialPortName() {
+        return mDevicePath + "," + mBaudrate;
     }
 
     /**
@@ -119,7 +128,8 @@ public abstract class BaseSerialWorker implements SerialWorker {
                 throw new RuntimeException("SerialPort hasn't been configured! (device="
                     + mDevicePath
                     + ",baudrate="
-                    + mBaudrate);
+                    + mBaudrate
+                    + ")");
             }
 
             mSerialPort = SerialPort.newBuilder(mDevicePath, mBaudrate)
@@ -138,7 +148,8 @@ public abstract class BaseSerialWorker implements SerialWorker {
             // 清理数据
             closeSerial();
             // 抛出异常
-            throw new OpenSerialException(ERROR_OPEN_SERIAL_FAILED, e);
+            throw new OpenSerialException(
+                String.format(ERROR_OPEN_SERIAL_FAILED, getSerialPortName()), e);
         }
     }
 
@@ -179,7 +190,7 @@ public abstract class BaseSerialWorker implements SerialWorker {
             // 用来容纳有效数据的
             ValidData validData = new ValidData();
 
-            LogPlus.i(TAG, "Start SerialPort Read Thread(Path=" + mDevicePath + ")");
+            LogPlus.i(TAG, String.format("Start SerialPort(%s) Read Thread", getSerialPortName()));
 
             int len;
 
@@ -190,8 +201,7 @@ public abstract class BaseSerialWorker implements SerialWorker {
                         if (len > 0) {
                             // 打印日志
                             if (isLogRecv()) {
-                                LogPlus.i(TAG,
-                                    "Recv=" + ByteUtil.bytes2HexStr(mRecvBuffer, 0, len));
+                                doLogRecv(ByteUtil.bytes2HexStr(mRecvBuffer, 0, len));
                             }
 
                             onReceiveData(mRecvBuffer, 0, len);
@@ -214,13 +224,15 @@ public abstract class BaseSerialWorker implements SerialWorker {
 
                     notifyRunningReceive(mRunning);
                 } catch (Exception e) {
-                    LogPlus.w(TAG, "Read data failed", e);
+                    LogPlus.w(TAG, String.format("SerialPort(%s) Read Thread exception occurred",
+                        getSerialPortName()), e);
                 }
                 //Thread.yield();
 
             }
 
-            LogPlus.i(TAG, "Read Thread Finished");
+            LogPlus.i(TAG,
+                String.format("SerialPort(%s) Read Thread Finished", getSerialPortName()));
         }
 
         /**
@@ -243,6 +255,26 @@ public abstract class BaseSerialWorker implements SerialWorker {
         mDataBits = dataBits;
         mParity = parity;
         mStopBits = stopBits;
+    }
+
+    public String getDevicePath() {
+        return mDevicePath;
+    }
+
+    public int getBaudrate() {
+        return mBaudrate;
+    }
+
+    public int getDataBits() {
+        return mDataBits;
+    }
+
+    public int getParity() {
+        return mParity;
+    }
+
+    public int getStopBits() {
+        return mStopBits;
     }
 
     /**
@@ -325,8 +357,7 @@ public abstract class BaseSerialWorker implements SerialWorker {
      * @return
      */
     @Override
-    public synchronized @Nullable
-    SerialPort getSerialPort() {
+    public synchronized @Nullable SerialPort getSerialPort() {
         return mSerialPort;
     }
 
@@ -361,6 +392,23 @@ public abstract class BaseSerialWorker implements SerialWorker {
     @Override
     public boolean isLogRecv() {
         return mLogRecv;
+    }
+
+    /** 打印接受数据日志 */
+    protected void doLogRecv(String hexString) {
+        LogPlus.i(TAG, String.format("SerialPort(%s) Recv=%s", getSerialPortName(), hexString));
+    }
+
+    /** 打印发送数据日志 */
+    protected void doLogSend(String hexString) {
+        LogPlus.i(TAG, String.format("SerialPort(%s) Send=%s", getSerialPortName(), hexString));
+    }
+
+    /** 打印发送数据失败时的日志 */
+    protected void doLogSendFailed(String hexString, Throwable e) {
+        LogPlus.w(TAG,
+            String.format("SerialPort(%s) Send failed, bytes=%s", getSerialPortName(), hexString),
+            e);
     }
 
     /**
@@ -487,11 +535,12 @@ public abstract class BaseSerialWorker implements SerialWorker {
         }
 
         if (isLogSend()) {
-            LogPlus.i(TAG, "Send=" + ByteUtil.bytes2HexStr(bytes, 0, len));
+            doLogSend(ByteUtil.bytes2HexStr(bytes, 0, len));
         }
 
         if (mOutputStream == null) {
-            throw new OpenSerialException(ERROR_NO_SERIALPORT_OPENED);
+            throw new OpenSerialException(
+                String.format(ERROR_NO_SERIALPORT_OPENED, getSerialPortName()));
         }
 
         mOutputStream.write(bytes, offset, len);
@@ -526,8 +575,7 @@ public abstract class BaseSerialWorker implements SerialWorker {
         } catch (Exception e) {
             // 不用管
             if (isLogSend() || isLogRecv()) {
-                LogPlus.i(TAG,
-                    "Send bytes=" + ByteUtil.bytes2HexStr(bytes, offset, length) + " failed", e);
+                doLogSendFailed(ByteUtil.bytes2HexStr(bytes, offset, length), e);
             }
         }
     }

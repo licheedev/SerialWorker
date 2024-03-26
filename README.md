@@ -10,11 +10,11 @@ allprojects {
 }
 
   dependencies {
-        implementation 'com.licheedev:serialworker:3.0.2'
+        implementation 'com.licheedev:serialworker:3.0.3'
         // 或者（用rxjava2的）
-        implementation 'com.licheedev:serialworker-rx2:3.0.2'
+        implementation 'com.licheedev:serialworker-rx2:3.0.3'
         // 或者（用rxjava3的）
-        implementation 'com.licheedev:serialworker-rx3:3.0.2'
+        implementation 'com.licheedev:serialworker-rx3:3.0.3'
         
 }
 
